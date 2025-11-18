@@ -1,0 +1,1695 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-HOVENSIM v3.1 - Simulador de Eficiência Energética de Fornos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #4CAF50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+            --text-color: #333;
+            --bg-light: #f5f7fa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- HEADER & SPLASH --- */
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 1.5em; margin: 0; }
+        .btn-home {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .btn-home:hover { background: rgba(255,255,255,0.4); }
+
+        .splash-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+            padding: 40px;
+            background: var(--primary-gradient);
+            color: white;
+            text-align: center;
+            min-height: 600px;
+        }
+
+        .btn-continue {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin-top: 30px;
+        }
+
+        /* --- MENUS & NAVIGATION --- */
+        .menu-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .menu-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .menu-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .menu-list li {
+            background: var(--bg-light);
+            padding: 15px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            border-left: 5px solid var(--primary-color);
+            position: relative;
+            transition: transform 0.2s;
+        }
+        .menu-list li:hover { transform: translateX(5px); background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .menu-list li a { text-decoration: none; color: var(--text-color); font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        
+        .status-badge {
+            position: absolute; top: 15px; right: 15px;
+            padding: 2px 8px; border-radius: 10px;
+            font-size: 0.7em; color: white; font-weight: bold;
+        }
+        .status-complete { background: var(--accent-color); }
+        .status-incomplete { background: var(--danger-color); }
+        .status-pending { background: #999; }
+
+        /* --- FORMS & INPUTS --- */
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
+        .form-row.three-col { grid-template-columns: 1fr 1fr 1fr; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+        
+        input, select {
+            width: 100%; padding: 10px;
+            border: 1px solid #ddd; border-radius: 6px;
+            font-size: 1em;
+        }
+        input:focus, select:focus { border-color: var(--primary-color); outline: none; }
+
+        /* --- BUTTONS --- */
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .btn { padding: 10px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn-danger { background: var(--danger-color); color: white; }
+
+        /* --- TOOLTIPS (NOVO SISTEMA) --- */
+        .help-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 20px; height: 20px;
+            background: #999; color: white;
+            border-radius: 50%; font-size: 0.75em;
+            margin-left: 8px; cursor: help;
+            position: relative;
+        }
+        .help-icon:hover { background: var(--primary-color); }
+
+        /* Tooltip Text Container */
+        .help-icon::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%; left: 50%; transform: translateX(-50%);
+            background: #333; color: white;
+            padding: 10px; border-radius: 6px;
+            font-size: 0.85em; font-weight: normal;
+            width: 250px; z-index: 1000;
+            display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            white-space: pre-wrap; text-align: left;
+            line-height: 1.4;
+        }
+        /* Tooltip Arrow */
+        .help-icon::before {
+            content: ""; position: absolute;
+            bottom: 115%; left: 50%; margin-left: -5px;
+            border-width: 5px; border-style: solid;
+            border-color: #333 transparent transparent transparent;
+            display: none; z-index: 1000;
+        }
+        .help-icon:hover::after, .help-icon:hover::before { display: block; }
+
+        /* --- CHARTS & TABLES --- */
+        .chart-container { position: relative; width: 100%; margin: 20px 0; }
+        .tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px; }
+        .tab-button { padding: 10px 20px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: #666; }
+        .tab-button.active { border-bottom-color: var(--primary-color); color: var(--primary-color); font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
+        .summary-card { background: white; padding: 15px; border: 1px solid #eee; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .summary-card .value { font-size: 1.5em; font-weight: bold; color: var(--primary-color); display: block; margin: 5px 0; }
+        .summary-card .label { font-size: 0.85em; color: #666; text-transform: uppercase; }
+
+        .simulation-box { background: #f8f9fa; border-left: 4px solid var(--primary-color); padding: 20px; margin-top: 20px; border-radius: 4px; }
+        .hidden { display: none !important; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f0f0f0; }
+
+        /* Tabelas comparativas específicas (simulação e comparação JSON) */
+        table.compare-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.compare-table th, table.compare-table td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+        table.compare-table th { background: #f9f9f9; }
+        table.compare-table tbody tr:nth-child(even) { background: #fdfdfd; }
+        
+        @media (max-width: 768px) {
+            .form-row, .form-row.three-col { grid-template-columns: 1fr; }
+            .menu-list { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Splash Screen -->
+        <div id="splashScreen" class="splash-screen">
+            <h1>K-HOVENSIM v3.1</h1>
+            <p>Simulador de Eficiência Energética de Fornos</p>
+            <p style="opacity: 0.8; font-size: 0.9em; margin-top: 10px;">Versão atualizada com Tooltips, Comparação Histórica e Correções de Cálculo.</p>
+            <button class="btn-continue" onclick="startApp()">Entrar</button>
+        </div>
+
+        <!-- Header Global (visível após splash) -->
+        <div id="appHeader" class="header hidden">
+            <h1>K-HOVENSIM</h1>
+            <button class="btn-home" onclick="showMenu()">🏠 Menu Principal</button>
+        </div>
+
+        <!-- Menu Principal -->
+        <div id="mainMenu" class="menu-content">
+            <h2 class="section-title">Painel de Controlo</h2>
+            <ul class="menu-list" id="menuList">
+                <!-- Preenchido via JS -->
+            </ul>
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-danger" onclick="resetAllData()">Limpar Dados</button>
+            </div>
+        </div>
+
+        <!-- Secções -->
+        <div id="sections">
+            
+            <!-- 1. Dados Iniciais -->
+            <div id="section-1" class="menu-content">
+                <div class="section-title">1. Dados Iniciais</div>
+                <form id="formClient">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Cliente</label>
+                            <input type="text" id="clientName" placeholder="Nome da Empresa">
+                        </div>
+                        <div class="form-group">
+                            <label>Instalação</label>
+                            <input type="text" id="buildingName" placeholder="Nome da Fábrica">
+                        </div>
+                    </div>
+                    <div class="nav-buttons">
+                        <button type="button" class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                        <button type="button" class="btn btn-primary" onclick="saveAndNext(1)">Próximo ➝</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 2. Indicadores Energéticos -->
+            <div id="section-2" class="menu-content">
+                <div class="section-title">2. Indicadores Energéticos (2025)</div>
+                <div style="margin-bottom: 20px; background: #e3f2fd; padding: 15px; border-radius: 5px;">
+                    <p><strong>Nota:</strong> Passe o rato nos ícones <strong>?</strong> para ver médias históricas e projeções.</p>
+                </div>
+
+        <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>Eletricidade (€/kWh) 
+                            <span class="help-icon" data-tooltip="Média 2020-24: €0.110
+Proj. 2026-30: €0.145
+Tendência: Alta moderada devido à eletrificação.">?</span>
+                        </label>
+                        <input type="number" id="priceElec" value="0.1340" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>Gás Natural (€/kWh)
+                            <span class="help-icon" data-tooltip="Média 2020-24: €0.045
+Proj. 2026-30: €0.075
+Tendência: Alta volatilidade e taxas de carbono crescentes.">?</span>
+                        </label>
+                        <input type="number" id="priceGas" value="0.0598" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>Biometano (€/kWh)
+                            <span class="help-icon" data-tooltip="Média 2020-24: €0.080
+Proj. 2026-30: €0.060
+Tendência: Baixa de preço esperada com aumento de produção.">?</span>
+                        </label>
+                        <input type="number" id="priceBio" value="0.0650" step="0.0001">
+                    </div>
+                </div>
+
+                <!-- Preços adicionais de combustível -->
+                <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>GLP (€/kWh)
+                            <span class="help-icon" data-tooltip="PCI=46 MJ/m³. Mais caro, portável.">?</span>
+                        </label>
+                        <input type="number" id="priceLPG" value="0.0800" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>Óleo Combustível (€/kWh)
+                            <span class="help-icon" data-tooltip="PCI≈45 MJ/kg. Mais poluente, menos eficiente.">?</span>
+                        </label>
+                        <input type="number" id="priceOil" value="0.0700" step="0.0001">
+                    </div>
+                    <div class="form-group"></div>
+                </div>
+                <!-- Combustíveis para Fornos -->
+                <div class="info-box" style="margin-top:15px; background:#f9f9f9; padding:15px; border-radius:5px;">
+                    <h4 style="margin-top:0;">Combustíveis para Fornos</h4>
+                    <ul style="margin:0; padding-left:20px;">
+                        <li><strong>Gás Natural:</strong> Mais comum. PCI=38.5&nbsp;MJ/m³. Queima limpa.</li>
+                        <li><strong>Biometano:</strong> Renovável. PCI≈36&nbsp;MJ/m³. Compatível com infraestrutura de gás.</li>
+                        <li><strong>GLP:</strong> Propano. PCI=46&nbsp;MJ/m³. Mais caro, portável.</li>
+                        <li><strong>Óleo Combustível:</strong> PCI≈45&nbsp;MJ/kg. Mais poluente, menos eficiente.</li>
+                        <li><strong>Resistência Elétrica:</strong> 100% eficiente, mas mais caro (eletricidade).</li>
+                    </ul>
+                </div>
+        <!-- Botão para projectar os indicadores e painel de resultados -->
+        <button type="button" class="btn btn-primary" id="btnProjectIndicators" onclick="projectIndicators()" style="margin-top:15px;">Projetar Indicadores</button>
+        <div id="indicatorProjection" class="hidden">
+            <div class="chart-container">
+                <canvas id="chartIndicators"></canvas>
+            </div>
+            <div class="summary-grid" id="indicatorSummary"></div>
+        </div>
+                <div class="nav-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="goToSection(1)">← Anterior</button>
+                    <button type="button" class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAndNext(2)">Próximo ➝</button>
+                </div>
+            </div>
+
+            <!-- 3. Perfil de Carga -->
+            <div id="section-3" class="menu-content">
+                <div class="section-title">3. Perfil de Carga</div>
+                
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab('tab-manual')">Definir Manualmente</button>
+                    <button class="tab-button" onclick="switchTab('tab-import')">Importar CSV</button>
+                </div>
+
+                <div id="tab-manual" class="tab-content active">
+                    <div class="form-row three-col">
+                        <div class="form-group">
+                            <label>Padrão Diário</label>
+                            <select id="patternDaily">
+                                <option value="flat">Contínuo (24h)</option>
+                                <option value="1shift">1 Turno (08h-17h)</option>
+                                <option value="2shifts">2 Turnos (06h-22h)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Carga Mín (kW)</label>
+                            <input type="number" id="dailyMin" value="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Carga Máx (kW)</label>
+                            <input type="number" id="dailyMax" value="150">
+                        </div>
+                    </div>
+    <!-- Added selectors for typical weekly and monthly patterns to enriquecer o perfil -->
+    <div class="form-row three-col">
+        <div class="form-group">
+            <label>Padrão Semanal</label>
+            <select id="patternWeekly">
+                <option value="uniform">Uniforme</option>
+                <option value="productive">Semana Produtiva (5d)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Padrão Mensal</label>
+            <select id="patternMonthly">
+                <option value="uniform">Uniforme</option>
+                <option value="summer-peak">Verão Pico</option>
+                <option value="winter-peak">Inverno Pico</option>
+            </select>
+        </div>
+        <div class="form-group"></div>
+    </div>
+    <button type="button" class="btn btn-primary" onclick="generateLoadProfile()">Gerar Perfil</button>
+                </div>
+
+                <div id="tab-import" class="tab-content">
+                    <input type="file" id="fileLoadProfile" accept=".csv,.txt">
+                    <button type="button" class="btn btn-primary" onclick="importLoadProfile()" style="margin-top:10px;">Processar</button>
+                </div>
+
+                <div id="loadProfileResults" class="hidden">
+        <h3 style="margin-top:20px; color:var(--primary-color);">Resultados do Perfil</h3>
+        <!-- Gráfico diário típico -->
+        <div class="chart-container">
+            <canvas id="chartDay"></canvas>
+        </div>
+        <!-- Resumo estatístico -->
+        <div class="summary-grid" id="profileSummary"></div>
+        <!-- Gráfico semanal agregado -->
+        <div class="chart-container">
+            <canvas id="chartWeek"></canvas>
+        </div>
+        <!-- Gráfico anual agregado -->
+        <div class="chart-container">
+            <canvas id="chartYear"></canvas>
+        </div>
+        <!-- Histograma da distribuição de cargas -->
+        <div class="chart-container">
+            <canvas id="chartHist"></canvas>
+        </div>
+        <!-- Tabela resumo adicional (opcional) -->
+        <div id="profileTable" style="overflow-x:auto;"></div>
+    </div>
+
+                <div class="nav-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="goToSection(2)">← Anterior</button>
+                    <button type="button" class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAndNext(3)">Próximo ➝</button>
+                </div>
+            </div>
+
+            <!-- 4. Forno Atual -->
+            <div id="section-4" class="menu-content">
+                <div class="section-title">4. Definição do Forno Atual</div>
+                
+                <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>Tipo de Forno <span class="help-icon" data-tooltip="Escolha a geometria base do forno.\nCâmara (intermitente), Túnel (contínuo), Rotativo (tambor), Empurrador (carros em linha), Poço (vertical).">?</span></label>
+                        <select id="furnaceType">
+                            <option value="chamber">Câmara</option>
+                            <option value="tunnel">Túnel</option>
+                            <option value="rotary">Rotativo</option>
+                            <option value="pusher">Empurrador</option>
+                            <option value="pit">Poço</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Queimador <span class="help-icon" data-tooltip="Seleccione a tecnologia de combustão.\nAtmosférico: ar não forçado.\nAr Forçado: ventilador.\nChama Plana: distribuição uniforme.\nAlta Velocidade: grande penetração.\nOxicombustão: mistura com oxigénio.\nPré-aquecido/Recuperativo: ar pré-aquecido.">?</span></label>
+                        <select id="burnerType">
+                            <option value="atmospheric">Atmosférico</option>
+                            <option value="forced">Ar Forçado</option>
+                            <option value="flat-flame">Chama Plana</option>
+                            <option value="high-velocity">Alta Velocidade</option>
+                            <option value="oxy-fuel">Oxicombustão</option>
+                            <option value="preheated">Pré-aquecido</option>
+                            <option value="recuperative">Recuperativo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Combustível <span class="help-icon" data-tooltip="Seleccione o tipo de combustível. O poder calorífico inferior (PCI) é utilizado nos cálculos de consumo.">?</span></label>
+                        <select id="fuelType" onchange="updatePCI('current')">
+                            <option value="natural-gas">Gás Natural</option>
+                            <option value="biomethane">Biometano</option>
+                            <option value="lpg">GLP (Propano/Butano)</option>
+                            <option value="oil">Óleo Combustível</option>
+                            <option value="electricity">Eletricidade</option>
+                            <option value="hydrogen">Hidrogénio</option>
+                            <option value="coal">Carvão</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <h3 style="font-size:1.1em; color:var(--secondary-color); margin:15px 0;">Geometria & Operação</h3>
+                <div class="form-row three-col">
+                    <div class="form-group"><label>Comp. (m)</label><input type="number" id="dimLength" value="5"></div>
+                    <div class="form-group"><label>Larg. (m)</label><input type="number" id="dimWidth" value="2"></div>
+                    <div class="form-group"><label>Alt. (m)</label><input type="number" id="dimHeight" value="2"></div>
+                </div>
+
+                <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>Temp. Op. (°C)</label>
+                        <input type="number" id="operatingTemp" value="1000">
+                    </div>
+                    <div class="form-group">
+                        <label>Excesso Ar (%)</label>
+                        <input type="number" id="excessAir" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label>PCI (MJ/unid)</label>
+                        <input type="number" id="calorificValue" value="38.5" step="0.1">
+                    </div>
+                </div>
+
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Isolamento</label>
+                        <select id="insulationMaterial">
+                            <option value="ceramic-fiber">Fibra Cerâmica</option>
+                            <option value="mineral-wool">Lã Mineral</option>
+                            <option value="glass-wool">Lã de Vidro</option>
+                            <option value="refractory-brick">Tijolo Refratário</option>
+                            <option value="foam-refractory">Espuma Refratária</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Espessura (mm)</label>
+                        <input type="number" id="insulationThickness" value="200">
+                    </div>
+                </div>
+
+                <!-- Material a Processar e Estado Isolamento (Atual) -->
+                <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>Material a Processar</label>
+                        <select id="materialType" onchange="updateOpTemp('current')">
+                            <option value="ceramica">Cerâmica/Vidro</option>
+                            <option value="aco">Aço</option>
+                            <option value="aluminio">Alumínio</option>
+                            <option value="preciosos">Metais Preciosos</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado Isolamento</label>
+                        <select id="insulationState">
+                            <option value="excelente">Excelente</option>
+                            <option value="bom">Bom</option>
+                            <option value="aceitavel">Aceitável</option>
+                            <option value="deficiente">Deficiente</option>
+                            <option value="critico">Crítico</option>
+                        </select>
+                    </div>
+                    <div class="form-group"></div>
+                </div>
+
+                <button class="btn btn-primary" style="width:100%" onclick="calculateFurnace('current')">🔄 Simular Performance Atual</button>
+
+                <div id="res-current-box" class="simulation-box hidden">
+                    <h4>Resultados (Forno Atual)</h4>
+                    <div class="summary-grid">
+                        <div class="summary-card"><div class="label">Potência Média</div><div class="value" id="res-curr-power-avg">0</div><small>kW</small></div>
+                        <div class="summary-card"><div class="label">Potência Máx</div><div class="value" id="res-curr-power-max">0</div><small>kW</small></div>
+                        <div class="summary-card"><div class="label">Consumo Hora</div><div class="value" id="res-curr-cons">0</div><small>unid/h</small></div>
+                        <div class="summary-card"><div class="label">Eficiência</div><div class="value" id="res-curr-eff">0</div><small>%</small></div>
+                        <div class="summary-card"><div class="label">Perdas Parede</div><div class="value" id="res-curr-wall">0</div><small>kW</small></div>
+                    </div>
+                    <div id="res-curr-compare" style="margin-top:10px; font-size:0.9em; font-weight:600;"></div>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" onclick="goToSection(3)">← Anterior</button>
+                    <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                    <button class="btn btn-primary" onclick="saveAndNext(4)">Próximo ➝</button>
+                </div>
+            </div>
+
+            <!-- 5. Forno Proposto -->
+            <div id="section-5" class="menu-content">
+                <div class="section-title">5. Definição do Forno Proposto</div>
+                <button class="btn btn-secondary" onclick="copyCurrentToProposed()" style="margin-bottom:20px;">📥 Copiar do Atual</button>
+
+                <!-- Inputs prefixados com prop_ -->
+                <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>Tipo de Forno</label>
+                        <select id="prop_furnaceType">
+                            <option value="chamber">Câmara</option>
+                            <option value="tunnel">Túnel</option>
+                            <option value="rotary">Rotativo</option>
+                            <option value="pusher">Empurrador</option>
+                            <option value="pit">Poço</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Queimador</label>
+                        <select id="prop_burnerType">
+                            <option value="atmospheric">Atmosférico</option>
+                            <option value="forced">Ar Forçado</option>
+                            <option value="flat-flame">Chama Plana</option>
+                            <option value="high-velocity">Alta Velocidade</option>
+                            <option value="oxy-fuel">Oxicombustão</option>
+                            <option value="preheated">Pré-aquecido</option>
+                            <option value="recuperative">Recuperativo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Combustível</label>
+                        <select id="prop_fuelType" onchange="updatePCI('proposed')">
+                            <option value="natural-gas">Gás Natural</option>
+                            <option value="biomethane">Biometano</option>
+                            <option value="lpg">GLP (Propano/Butano)</option>
+                            <option value="oil">Óleo Combustível</option>
+                            <option value="electricity">Eletricidade</option>
+                            <option value="hydrogen">Hidrogénio</option>
+                            <option value="coal">Carvão</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row three-col">
+                    <div class="form-group"><label>Comp. (m)</label><input type="number" id="prop_dimLength"></div>
+                    <div class="form-group"><label>Larg. (m)</label><input type="number" id="prop_dimWidth"></div>
+                    <div class="form-group"><label>Alt. (m)</label><input type="number" id="prop_dimHeight"></div>
+                </div>
+
+                <div class="form-row three-col">
+                    <div class="form-group"><label>Temp. Op. (°C)</label><input type="number" id="prop_operatingTemp"></div>
+                    <div class="form-group"><label>Excesso Ar (%)</label><input type="number" id="prop_excessAir"></div>
+                    <div class="form-group"><label>PCI (MJ/unid)</label><input type="number" id="prop_calorificValue"></div>
+                </div>
+
+                <!-- Materiais e Estado de Isolamento (Proposto) -->
+                <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>Material a Processar</label>
+                        <select id="prop_materialType" onchange="updateOpTemp('proposed')">
+                            <option value="ceramica">Cerâmica/Vidro</option>
+                            <option value="aco">Aço</option>
+                            <option value="aluminio">Alumínio</option>
+                            <option value="preciosos">Metais Preciosos</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado Isolamento</label>
+                        <select id="prop_insulationState">
+                            <option value="excelente">Excelente</option>
+                            <option value="bom">Bom</option>
+                            <option value="aceitavel">Aceitável</option>
+                            <option value="deficiente">Deficiente</option>
+                            <option value="critico">Crítico</option>
+                        </select>
+                    </div>
+                    <div class="form-group"></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Isolamento</label>
+                        <select id="prop_insulationMaterial">
+                            <option value="ceramic-fiber">Fibra Cerâmica</option>
+                            <option value="mineral-wool">Lã Mineral</option>
+                            <option value="glass-wool">Lã de Vidro</option>
+                            <option value="refractory-brick">Tijolo Refratário</option>
+                            <option value="foam-refractory">Espuma Refratária</option>
+                            <option value="microporous">Microporoso</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Espessura (mm)</label><input type="number" id="prop_insulationThickness"></div>
+                </div>
+
+                <button class="btn btn-primary" style="width:100%" onclick="calculateFurnace('proposed')">🔄 Simular Performance Proposta</button>
+
+                <div id="res-prop-box" class="simulation-box hidden" style="border-color: #4CAF50;">
+                    <h4>Resultados (Forno Proposto)</h4>
+                    <div class="summary-grid">
+                        <div class="summary-card"><div class="label">Potência Média</div><div class="value" id="res-prop-power-avg">0</div><small>kW</small></div>
+                        <div class="summary-card"><div class="label">Potência Máx</div><div class="value" id="res-prop-power-max">0</div><small>kW</small></div>
+                        <div class="summary-card"><div class="label">Consumo Hora</div><div class="value" id="res-prop-cons">0</div><small>unid/h</small></div>
+                        <div class="summary-card"><div class="label">Eficiência</div><div class="value" id="res-prop-eff">0</div><small>%</small></div>
+                        <div class="summary-card"><div class="label">Perdas Parede</div><div class="value" id="res-prop-wall">0</div><small>kW</small></div>
+                    </div>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" onclick="goToSection(4)">← Anterior</button>
+                    <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                    <button class="btn btn-primary" onclick="saveAndNext(5)">Próximo ➝</button>
+                </div>
+            </div>
+
+            <!-- 6. Investimento -->
+            <div id="section-6" class="menu-content">
+                <div class="section-title">6. Investimento</div>
+                <p>Estime os custos de investimento (CAPEX) e operação (OPEX) para o novo forno. Pode optar por uma estimativa automática baseada nas dimensões e parâmetros ou inserir manualmente os valores.</p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><input type="radio" name="investMode" id="invest_auto" checked onchange="toggleInvestMode()"> Estimar</label>
+                        <label style="margin-left:15px;"><input type="radio" name="investMode" id="invest_manual" onchange="toggleInvestMode()"> Manual</label>
+                    </div>
+                </div>
+                <div id="invest-manual-fields" class="hidden">
+                    <div class="form-row">
+                        <div class="form-group"><label>CAPEX (€)</label><input type="number" id="inputCapex" step="1000"></div>
+                        <div class="form-group"><label>OPEX (€)</label><input type="number" id="inputOpex" step="1000"></div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="calculateInvestment()">Calcular Investimento</button>
+                <div id="investResults" style="margin-top:15px;"></div>
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" onclick="goToSection(5)">← Anterior</button>
+                    <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                    <button class="btn btn-primary" onclick="saveAndNext(6)">Próximo ➝</button>
+                </div>
+            </div>
+
+            <!-- 7. Simulação -->
+            <div id="section-7" class="menu-content">
+                <div class="section-title">7. Simulação</div>
+                <p>Nesta secção pode comparar o consumo e custo energético do forno atual e do proposto para diferentes períodos.</p>
+                <button class="btn btn-primary" style="width:100%; padding:15px; margin-bottom:20px;" onclick="runSimulationComparison()">▶️ Gerar Simulação</button>
+                <div id="sim-comparison-results" class="hidden"></div>
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" onclick="goToSection(6)">← Anterior</button>
+                    <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                    <button class="btn btn-primary" onclick="saveAndNext(7)">Próximo ➝</button>
+                </div>
+            </div>
+
+            <!-- 8. ROI -->
+            <div id="section-8" class="menu-content">
+                 <div class="section-title">8. ROI</div>
+                 <p>Calcule o retorno do investimento com base nos consumos e custos comparados e nos valores de CAPEX/OPEX.</p>
+                 <button class="btn btn-primary" onclick="calculateROI()">Calcular ROI</button>
+                 <div id="roiResults" style="margin-top:20px;"></div>
+                 <div class="nav-buttons">
+                     <button class="btn btn-secondary" onclick="goToSection(7)">← Anterior</button>
+                     <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                     <button class="btn btn-primary" onclick="saveAndNext(8)">Próximo ➝</button>
+                 </div>
+            </div>
+
+            <!-- 9. Relatório -->
+            <div id="section-9" class="menu-content">
+                 <div class="section-title">9. Relatório</div>
+                 <div style="text-align:center; padding:40px;">
+                     <p>Gere o relatório final com todos os dados calculados.</p>
+                     <button class="btn btn-danger" onclick="alert('PDF gerado (simulação)!')">📄 Download PDF</button>
+                 </div>
+                 <div class="nav-buttons">
+                    <button class="btn btn-secondary" onclick="goToSection(8)">← Anterior</button>
+                    <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                </div>
+            </div>
+
+            <!-- 10. Importar/Exportar Dados -->
+            <div id="section-10" class="menu-content">
+                <div class="section-title">10. Importar / Exportar Dados</div>
+                <p>Exporte todos os dados dos menus para um ficheiro JSON ou importe um ficheiro JSON previamente guardado.</p>
+                <button class="btn btn-primary" onclick="exportData()">Exportar JSON</button>
+                <input type="file" id="jsonFileInput" accept=".json" style="margin-left:15px;">
+                <button class="btn btn-primary" onclick="importData()">Importar JSON</button>
+                <div class="nav-buttons" style="margin-top:20px;">
+                    <button class="btn btn-secondary" onclick="goToSection(9)">← Anterior</button>
+                    <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                    <button class="btn btn-primary" onclick="saveAndNext(10)">Próximo ➝</button>
+                </div>
+            </div>
+
+            <!-- 11. Comparar Ficheiros JSON -->
+            <div id="section-11" class="menu-content">
+                <div class="section-title">11. Comparar Ficheiros JSON</div>
+                <p>Selecione vários ficheiros JSON para comparar os resultados de diferentes simulações.</p>
+                <input type="file" id="multiJsonInput" accept=".json" multiple>
+                <button class="btn btn-primary" onclick="compareJsonFiles()">Comparar</button>
+                <div id="compareResults" style="margin-top:20px;"></div>
+                <div class="nav-buttons" style="margin-top:20px;">
+                    <button class="btn btn-secondary" onclick="goToSection(10)">← Anterior</button>
+                    <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- ESTADO GLOBAL ---
+        let appData = {
+            client: {},
+            loadProfile: [], // Array de 8760 floats
+            furnace: { perf: null },
+            proposed: { perf: null },
+            simResults: null, // resultados da simulação global antiga
+            investment: null, // armazenará CAPEX e OPEX calculados ou manuais
+            simComparison: null, // armazenará consumos e custos comparativos (para gráfico e tabelas)
+            roiResults: null // armazenará resultados de ROI
+        };
+        let charts = {};
+
+        // --- INICIALIZAÇÃO ---
+        function startApp() {
+            document.getElementById('splashScreen').style.display = 'none';
+            document.getElementById('appHeader').classList.remove('hidden');
+            showMenu();
+            
+            // Inicializa dados dummy se vazio para testes
+            if(appData.loadProfile.length === 0) generateLoadProfile(true);
+        }
+
+        function showMenu() {
+            document.querySelectorAll('.menu-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('mainMenu').classList.add('active');
+            updateMenuUI();
+        }
+
+        function goToSection(n) {
+            document.querySelectorAll('.menu-content').forEach(el => el.classList.remove('active'));
+            const sec = document.getElementById('section-' + n);
+            if(sec) sec.classList.add('active');
+            window.scrollTo(0,0);
+        }
+
+        function saveAndNext(n) {
+            // Salvar inputs básicos
+            if(n===1) {
+                appData.client.name = document.getElementById('clientName').value;
+                appData.client.building = document.getElementById('buildingName').value;
+            }
+            // Avançar sequencialmente
+            const next = n + 1;
+            goToSection(next);
+        }
+
+        function updateMenuUI() {
+            const steps = [
+                {id:1, t:"Dados Iniciais", s: appData.client.name ? 'complete':'incomplete'},
+                {id:2, t:"Indicadores", s: 'complete'},
+                {id:3, t:"Perfil Carga", s: appData.loadProfile.length>0 ? 'complete':'incomplete'},
+                {id:4, t:"Forno Atual", s: appData.furnace.perf ? 'complete':'incomplete'},
+                {id:5, t:"Forno Proposto", s: appData.proposed.perf ? 'complete':'incomplete'},
+                {id:6, t:"Investimento", s: appData.investment ? 'complete':'incomplete'},
+                {id:7, t:"Simulação", s: appData.simComparison ? 'complete':'incomplete'},
+                {id:8, t:"ROI", s: appData.roiResults ? 'complete':'incomplete'},
+                {id:9, t:"Relatório", s: 'pending'},
+                {id:10, t:"Importar/Exportar", s: 'pending'},
+                {id:11, t:"Comparar JSON", s:'pending'}
+            ];
+            const html = steps.map(x => `
+                <li onclick="goToSection(${x.id})">
+                    <a href="#">${x.t}</a>
+                    <span class="status-badge status-${x.s}">${x.s==='complete'?'OK':'...'}</span>
+                </li>
+            `).join('');
+            document.getElementById('menuList').innerHTML = html;
+        }
+
+        function resetAllData() {
+            if(confirm("Apagar tudo?")) {
+                location.reload();
+            }
+        }
+
+        // --- PERFIL DE CARGA (MENU 3) ---
+        function switchTab(t) {
+            document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(e=>e.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function generateLoadProfile(silent=false) {
+            // Lê limites mínimos e máximos
+            const min = parseFloat(document.getElementById('dailyMin').value) || 20;
+            const max = parseFloat(document.getElementById('dailyMax').value) || 150;
+            // Padrões seleccionados
+            const patternDaily = document.getElementById('patternDaily').value;
+            const weekly = document.getElementById('patternWeekly') ? document.getElementById('patternWeekly').value : 'uniform';
+            const monthly = document.getElementById('patternMonthly') ? document.getElementById('patternMonthly').value : 'uniform';
+            // Limites de dias acumulados por mês (ano não bissexto)
+            const monthBoundaries = [31,59,90,120,151,181,212,243,273,304,334,365];
+            const data = [];
+            for(let i=0; i<8760; i++) {
+                const hourOfDay = i % 24;
+                let val;
+                // Define o padrão diário
+                if(patternDaily === 'flat') {
+                    val = (min + max) / 2;
+                } else if(patternDaily === '1shift') {
+                    val = (hourOfDay >= 8 && hourOfDay < 17) ? max : min;
+                } else if(patternDaily === '2shifts') {
+                    val = ((hourOfDay >= 6 && hourOfDay < 14) || (hourOfDay >= 14 && hourOfDay < 22)) ? max : min;
+                } else {
+                    // fallback: forma sinusoidal
+                    val = min + (max - min) * Math.sin((hourOfDay / 24) * Math.PI);
+                    if(val < min) val = min;
+                }
+                // Ajuste semanal: reduz fins‑de‑semana se produtivo
+                const dayOfYear = Math.floor(i / 24);
+                const dayOfWeek = dayOfYear % 7;
+                if(weekly === 'productive' && (dayOfWeek === 5 || dayOfWeek === 6)) {
+                    val *= 0.5;
+                }
+                // Determina o mês corrente
+                let month = 0;
+                for(let m=0; m<monthBoundaries.length; m++) {
+                    if(dayOfYear < monthBoundaries[m]) {
+                        month = m;
+                        break;
+                    }
+                }
+                // Ajuste mensal: aumenta no verão ou no inverno conforme seleccionado
+                if(monthly === 'summer-peak' && (month >=5 && month <=7)) {
+                    val *= 1.2;
+                } else if(monthly === 'winter-peak' && (month === 11 || month <=1)) {
+                    val *= 1.2;
+                }
+                data.push(val);
+            }
+            // Guarda o perfil no estado global
+            appData.loadProfile = data;
+            if(!silent) {
+                // Renderiza gráficos e estatísticas
+                // Gráfico diário (primeiras 24h)
+                renderChart(data.slice(0,24));
+                // Gráficos adicionais
+                renderChartWeek(data);
+                renderChartYear(data);
+                renderChartHist(data);
+                // Estatísticas básicas
+                const sum = data.reduce((a,b) => a + b, 0);
+                const avg = sum / data.length;
+                const minVal = Math.min(...data);
+                const maxVal = Math.max(...data);
+                // Mediana
+                const sorted = [...data].sort((a,b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+                document.getElementById('profileSummary').innerHTML = `
+                    <div class="summary-card"><div class="label">Média</div><div class="value">${avg.toFixed(1)} kW</div></div>
+                    <div class="summary-card"><div class="label">Mínimo</div><div class="value">${minVal.toFixed(1)} kW</div></div>
+                    <div class="summary-card"><div class="label">Mediana</div><div class="value">${median.toFixed(1)} kW</div></div>
+                    <div class="summary-card"><div class="label">Pico</div><div class="value">${maxVal.toFixed(1)} kW</div></div>
+                `;
+                document.getElementById('loadProfileResults').classList.remove('hidden');
+            }
+        }
+
+        function renderChart(data24) {
+            const ctx = document.getElementById('chartDay').getContext('2d');
+            if(charts.day) charts.day.destroy();
+            charts.day = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length:24},(_,i)=>i+'h'),
+                    datasets: [{
+                        label: 'Perfil Diário Típico (kW)',
+                        data: data24,
+                        borderColor: '#667eea',
+                        fill: true,
+                        backgroundColor: 'rgba(102,126,234,0.1)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, aspectRatio: 2 } // 16:9 approx logic handled by CSS usually but force aspect here
+            });
+        }
+
+        // Gráfico semanal: utiliza as primeiras 168 horas como padrão semanal
+        function renderChartWeek(data) {
+            const week = data.slice(0, 24 * 7);
+            const labels = [];
+            for(let i=0; i<week.length; i++) {
+                const d = Math.floor(i / 24) + 1;
+                const h = i % 24;
+                labels.push('D' + d + ' ' + h + 'h');
+            }
+            const ctx = document.getElementById('chartWeek').getContext('2d');
+            if(charts.week) charts.week.destroy();
+            charts.week = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Perfil Semanal Típico (kW)',
+                        data: week,
+                        borderColor: '#764ba2',
+                        fill: true,
+                        backgroundColor: 'rgba(118,75,162,0.1)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, aspectRatio: 2 }
+            });
+        }
+
+        // Gráfico anual: calcula médias mensais
+        function renderChartYear(data) {
+            const monthLengths = [31,28,31,30,31,30,31,31,30,31,30,31];
+            const monthLabels = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            const monthData = [];
+            let index = 0;
+            for(let m=0; m<monthLengths.length; m++) {
+                const hours = monthLengths[m] * 24;
+                let sum = 0;
+                for(let j=0; j<hours; j++) {
+                    sum += data[index + j] || 0;
+                }
+                monthData.push(sum / hours);
+                index += hours;
+            }
+            const ctx = document.getElementById('chartYear').getContext('2d');
+            if(charts.year) charts.year.destroy();
+            charts.year = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: monthLabels,
+                    datasets: [{
+                        label: 'Perfil Mensal Médio (kW)',
+                        data: monthData,
+                        borderColor: '#4CAF50',
+                        fill: true,
+                        backgroundColor: 'rgba(76,175,80,0.1)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, aspectRatio: 2 }
+            });
+        }
+
+        // Histograma da distribuição de cargas
+        function renderChartHist(data) {
+            const minVal = Math.min(...data);
+            const maxVal = Math.max(...data);
+            const bins = 10;
+            const binSize = (maxVal - minVal) / bins;
+            const counts = new Array(bins).fill(0);
+            data.forEach(v => {
+                const idx = Math.min(Math.floor((v - minVal) / binSize), bins - 1);
+                counts[idx] += 1;
+            });
+            const labels = [];
+            for(let i=0; i<bins; i++) {
+                const start = minVal + binSize * i;
+                const end = start + binSize;
+                labels.push(start.toFixed(0) + '-' + end.toFixed(0));
+            }
+            const ctx = document.getElementById('chartHist').getContext('2d');
+            if(charts.hist) charts.hist.destroy();
+            charts.hist = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Distribuição de Cargas (freq.)',
+                        data: counts,
+                        backgroundColor: 'rgba(255,152,0,0.3)',
+                        borderColor: '#ff9800'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, aspectRatio: 2 }
+            });
+        }
+
+        // Importa um perfil de carga a partir de um ficheiro CSV/TXT (Menu 3)
+        function importLoadProfile() {
+            const input = document.getElementById('fileLoadProfile');
+            const file = input && input.files ? input.files[0] : null;
+            if(!file) {
+                alert('Selecione um ficheiro CSV com 8760 valores.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result.trim();
+                // Remove retornos de carro e divide por linhas
+                const lines = text.replace(/\r/g,'').split(/\n/).filter(l => l.trim() !== '');
+                const values = [];
+                lines.forEach(line => {
+                    // permite separadores vírgula ou ponto e vírgula
+                    const parts = line.split(/;|,/);
+                    parts.forEach(p => {
+                        const v = parseFloat(p.trim());
+                        if(!isNaN(v)) values.push(v);
+                    });
+                });
+                if(values.length !== 8760) {
+                    alert('Erro: O ficheiro importado deve conter 8760 valores numéricos. Foram encontrados ' + values.length + '.');
+                    return;
+                }
+                appData.loadProfile = values;
+                // Renderiza gráficos e estatísticas tal como a função generateLoadProfile
+                renderChart(values.slice(0,24));
+                renderChartWeek(values);
+                renderChartYear(values);
+                renderChartHist(values);
+                const sum = values.reduce((a,b)=>a+b,0);
+                const avg = sum / values.length;
+                const minVal = Math.min(...values);
+                const maxVal = Math.max(...values);
+                const sorted = [...values].sort((a,b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
+                document.getElementById('profileSummary').innerHTML = `
+                    <div class="summary-card"><div class="label">Média</div><div class="value">${avg.toFixed(1)} kW</div></div>
+                    <div class="summary-card"><div class="label">Mínimo</div><div class="value">${minVal.toFixed(1)} kW</div></div>
+                    <div class="summary-card"><div class="label">Mediana</div><div class="value">${median.toFixed(1)} kW</div></div>
+                    <div class="summary-card"><div class="label">Pico</div><div class="value">${maxVal.toFixed(1)} kW</div></div>
+                `;
+                document.getElementById('loadProfileResults').classList.remove('hidden');
+            };
+            reader.readAsText(file);
+        }
+
+        // Projecção de indicadores energéticos (Menu 2)
+        function projectIndicators() {
+            const baseElec = parseFloat(document.getElementById('priceElec').value) || 0;
+            const baseGas = parseFloat(document.getElementById('priceGas').value) || 0;
+            const baseBio = parseFloat(document.getElementById('priceBio').value) || 0;
+            const baseLPG = parseFloat(document.getElementById('priceLPG').value) || 0;
+            const baseOil = parseFloat(document.getElementById('priceOil').value) || 0;
+            // Valores alvo previstos para 2030 (conforme notas)
+            const target = { elec: 0.145, gas: 0.075, bio: 0.060, lpg: 0.090, oil: 0.080 };
+            const years = [2025, 2026, 2027, 2028, 2029, 2030];
+            const elecVals = [], gasVals = [], bioVals = [], lpgVals = [], oilVals = [];
+            for(let i=0; i<years.length; i++) {
+                const t = i / (years.length - 1);
+                elecVals.push(baseElec + t * (target.elec - baseElec));
+                gasVals.push(baseGas + t * (target.gas - baseGas));
+                bioVals.push(baseBio + t * (target.bio - baseBio));
+                lpgVals.push(baseLPG + t * (target.lpg - baseLPG));
+                oilVals.push(baseOil + t * (target.oil - baseOil));
+            }
+            const ctx = document.getElementById('chartIndicators').getContext('2d');
+            if(charts.indicators) charts.indicators.destroy();
+            charts.indicators = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [
+                        { label: 'Eletricidade', data: elecVals, borderColor: '#667eea', fill: false },
+                        { label: 'Gás Natural', data: gasVals, borderColor: '#ff9800', fill: false },
+                        { label: 'Biometano', data: bioVals, borderColor: '#4CAF50', fill: false },
+                        { label: 'GLP', data: lpgVals, borderColor: '#9c27b0', fill: false },
+                        { label: 'Óleo', data: oilVals, borderColor: '#795548', fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, aspectRatio: 2 }
+            });
+            // Crescimentos percentuais
+            const incE = elecVals.length>1 ? (elecVals[elecVals.length-1] - elecVals[0]) / elecVals[0] * 100 : 0;
+            const incG = gasVals.length>1 ? (gasVals[gasVals.length-1] - gasVals[0]) / gasVals[0] * 100 : 0;
+            const incB = bioVals.length>1 ? (bioVals[bioVals.length-1] - bioVals[0]) / bioVals[0] * 100 : 0;
+            const incL = lpgVals.length>1 ? (lpgVals[lpgVals.length-1] - lpgVals[0]) / lpgVals[0] * 100 : 0;
+            const incO = oilVals.length>1 ? (oilVals[oilVals.length-1] - oilVals[0]) / oilVals[0] * 100 : 0;
+            const ratioEG = gasVals[gasVals.length-1] !== 0 ? elecVals[elecVals.length-1] / gasVals[gasVals.length-1] : 0;
+            document.getElementById('indicatorSummary').innerHTML = `
+                <div class="summary-card"><div class="label">Eletricidade 2030</div><div class="value">${elecVals[elecVals.length-1].toFixed(3)} €</div><small>${incE>=0?'+':''}${incE.toFixed(1)}%</small></div>
+                <div class="summary-card"><div class="label">Gás 2030</div><div class="value">${gasVals[gasVals.length-1].toFixed(3)} €</div><small>${incG>=0?'+':''}${incG.toFixed(1)}%</small></div>
+                <div class="summary-card"><div class="label">Biometano 2030</div><div class="value">${bioVals[bioVals.length-1].toFixed(3)} €</div><small>${incB>=0?'+':''}${incB.toFixed(1)}%</small></div>
+                <div class="summary-card"><div class="label">GLP 2030</div><div class="value">${lpgVals[lpgVals.length-1].toFixed(3)} €</div><small>${incL>=0?'+':''}${incL.toFixed(1)}%</small></div>
+                <div class="summary-card"><div class="label">Óleo 2030</div><div class="value">${oilVals[oilVals.length-1].toFixed(3)} €</div><small>${incO>=0?'+':''}${incO.toFixed(1)}%</small></div>
+                <div class="summary-card"><div class="label">Razão Elec/Gás (2030)</div><div class="value">${ratioEG.toFixed(1)}</div><small>&nbsp;</small></div>
+            `;
+            document.getElementById('indicatorProjection').classList.remove('hidden');
+        }
+
+        // --- SIMULAÇÃO FORNOS (MENU 4 & 5) ---
+        function updatePCI(mode) {
+            const prefix = mode === 'proposed' ? 'prop_' : '';
+            const fuel = document.getElementById(prefix+'fuelType').value;
+            // Actualiza o PCI consoante o combustível seleccionado.
+            // Valores típicos em MJ por unidade (m³ ou kg). Electricidade usa 3.6 MJ/kWh para consistência.
+            const map = {
+                'natural-gas': 38.5,
+                'biomethane': 36,
+                'lpg': 46,
+                'oil': 45,
+                'electricity': 3.6,
+                'hydrogen': 120,
+                'coal': 23
+            };
+            if(map[fuel]) document.getElementById(prefix+'calorificValue').value = map[fuel];
+        }
+
+        // Ajusta a temperatura de operação recomendada consoante o material processado.
+        function updateOpTemp(mode) {
+            const prefix = mode === 'proposed' ? 'prop_' : '';
+            const mat = document.getElementById(prefix + 'materialType').value;
+            const tempMap = {
+                'ceramica': 1200,
+                'aco': 1000,
+                'aluminio': 700,
+                'preciosos': 1500,
+                'outro': 1000
+            };
+            if(document.getElementById(prefix + 'operatingTemp').value === '' || document.getElementById(prefix + 'operatingTemp').value == 0) {
+                document.getElementById(prefix + 'operatingTemp').value = tempMap[mat] || 1000;
+            }
+        }
+
+        function calculateFurnace(mode) {
+            // Validação básica do perfil
+            if(!appData.loadProfile || appData.loadProfile.length === 0) {
+                alert("Erro: Perfil de Carga vazio. Vá ao Menu 3 e gere o perfil primeiro.");
+                return;
+            }
+
+            const prefix = mode === 'proposed' ? 'prop_' : '';
+            
+            // Inputs
+            const T_op = parseFloat(document.getElementById(prefix+'operatingTemp').value) || 1000;
+            const excessAir = parseFloat(document.getElementById(prefix+'excessAir').value) || 20;
+            const pci = parseFloat(document.getElementById(prefix+'calorificValue').value) || 38.5;
+            const L = parseFloat(document.getElementById(prefix+'dimLength').value) || 5;
+            const W = parseFloat(document.getElementById(prefix+'dimWidth').value) || 2;
+            const H = parseFloat(document.getElementById(prefix+'dimHeight').value) || 2;
+            const insThick = parseFloat(document.getElementById(prefix+'insulationThickness').value) || 200;
+            
+            // 1. Carga Útil Média (do perfil)
+            const avgLoadKW = appData.loadProfile.reduce((a,b)=>a+b,0) / appData.loadProfile.length;
+
+            // 2. Perdas de Parede (em função da condutividade e estado)
+            const area = 2*(L*W + L*H + W*H);
+            const mat = document.getElementById(prefix + 'insulationMaterial').value;
+            // Condutividades aproximadas (W/m.K). Valores médios representativos.
+            const kMap = {
+                'ceramic-fiber': 0.12,
+                'mineral-wool': 0.05,
+                'glass-wool': 0.04,
+                'refractory-brick': 0.8,
+                'foam-refractory': 0.15,
+                'microporous': 0.03
+            };
+            const k = kMap[mat] || 0.15;
+            // Fator de degradação do isolamento com base no estado
+            const stateSel = document.getElementById(prefix + 'insulationState');
+            let degradeFactor = 1;
+            if(stateSel) {
+                const state = stateSel.value;
+                const dfMap = {
+                    'excelente': 1.0,
+                    'bom': 1.05,
+                    'aceitavel': 1.15,
+                    'deficiente': 1.3,
+                    'critico': 1.5
+                };
+                degradeFactor = dfMap[state] || 1;
+            }
+            const wallLoss = (area * k * (T_op - 20)) / (insThick/1000) / 1000 * degradeFactor; // kW
+
+            // 3. Eficiência Combustão (simplificada com base no queimador e excesso de ar)
+            const burnType = document.getElementById(prefix+'burnerType').value;
+            // Eficiências típicas para cada queimador (fração):
+            const effMap = {
+                'atmospheric': 0.55,
+                'forced': 0.70,
+                'flat-flame': 0.70,
+                'high-velocity': 0.75,
+                'oxy-fuel': 0.80,
+                'preheated': 0.80,
+                'recuperative': 0.80
+            };
+            let baseEff = effMap[burnType] || 0.60;
+            // Penalização por excesso de ar (acima de 10%) - cada 10% adicionais reduz 5% da eficiência
+            let penalty = 1 - Math.max(0, excessAir - 10) * 0.005;
+            if(penalty < 0.5) penalty = 0.5;
+            const adjustedEff = baseEff * penalty;
+            // Potências médias e máximas (kW) considerando o perfil e as perdas de parede
+            const maxLoadKW = Math.max(...appData.loadProfile);
+            const powerAvg = avgLoadKW + wallLoss;
+            const powerMax = maxLoadKW + wallLoss;
+            // 4. Balanço
+            const totalInput = powerAvg / adjustedEff; // kW de energia química
+            const efficiency = (avgLoadKW / totalInput) * 100;
+            const consPerHour = (totalInput * 3.6) / pci; // unidade/h
+
+            // Guardar
+            const res = { totalInput, efficiency, consPerHour, wallLoss };
+            if(mode === 'current') appData.furnace.perf = res;
+            else appData.proposed.perf = res;
+
+            // UI
+            const divId = mode === 'current' ? 'res-current-box' : 'res-prop-box';
+            const pId = mode === 'current' ? 'res-curr-' : 'res-prop-';
+
+            document.getElementById(divId).classList.remove('hidden');
+            // Actualiza valores na interface
+            document.getElementById(pId + 'power-avg').textContent = powerAvg.toFixed(1);
+            document.getElementById(pId + 'power-max').textContent = powerMax.toFixed(1);
+            document.getElementById(pId + 'cons').textContent = consPerHour.toFixed(1);
+            document.getElementById(pId + 'eff').textContent = efficiency.toFixed(1);
+            document.getElementById(pId + 'wall').textContent = wallLoss.toFixed(1);
+
+            // Comparação com pico do perfil (apenas para forno atual)
+            if(mode === 'current') {
+                const peakLoad = Math.max(...appData.loadProfile);
+                let msg = '';
+                if(powerMax >= peakLoad * 1.1) {
+                    msg = `✅ Capacidade suficiente para o pico (${peakLoad.toFixed(1)} kW)`;
+                } else if(powerMax >= peakLoad) {
+                    msg = `⚠️ Capacidade quase no limite (pico: ${peakLoad.toFixed(1)} kW)`;
+                } else {
+                    msg = `❌ Capacidade insuficiente: pico ${peakLoad.toFixed(1)} kW, capacidade ${powerMax.toFixed(1)} kW`;
+                }
+                const compareDiv = document.getElementById('res-curr-compare');
+                if(compareDiv) compareDiv.textContent = msg;
+            }
+        }
+
+        function copyCurrentToProposed() {
+            const fields = ['furnaceType','dimLength','dimWidth','dimHeight','operatingTemp','excessAir','calorificValue','insulationThickness','materialType','insulationState','burnerType','fuelType','insulationMaterial'];
+            fields.forEach(id => {
+                const val = document.getElementById(id).value;
+                if(document.getElementById('prop_'+id)) document.getElementById('prop_'+id).value = val;
+            });
+            alert("Dados copiados.");
+        }
+
+        // --- MENU 6 & 7 (GLOBAL) ---
+        /*
+         * Alterna entre modo de investimento automático e manual.
+         * Quando o utilizador selecciona "Manual", são exibidos campos para
+         * inserir CAPEX e OPEX. No modo "Estimar", estes campos são escondidos
+         * e os valores serão calculados a partir dos parâmetros do forno.
+         */
+        function toggleInvestMode() {
+            const manual = document.getElementById('invest_manual').checked;
+            document.getElementById('invest-manual-fields').classList.toggle('hidden', !manual);
+        }
+
+        /*
+         * Estima o investimento (CAPEX) e os custos operacionais (OPEX) para o novo forno.
+         * Se o modo for manual, os valores são lidos dos campos dedicados. Caso contrário,
+         * uma estimativa simplificada é calculada com base na área, tipo de forno, combustível e isolamento.
+         */
+        function calculateInvestment() {
+            const manual = document.getElementById('invest_manual').checked;
+            let capex = 0;
+            let opex = 0;
+            if(manual) {
+                capex = parseFloat(document.getElementById('inputCapex').value) || 0;
+                opex  = parseFloat(document.getElementById('inputOpex').value) || 0;
+            } else {
+                // Estimativa automática: calcula área e factores de correcção
+                // Utiliza as dimensões do forno proposto (se estiver preenchido) senão do forno actual
+                const mode = appData.proposed && appData.proposed.perf ? 'prop_' : '';
+                // Dimensões
+                const L = parseFloat(document.getElementById(mode+'dimLength').value) || 5;
+                const W = parseFloat(document.getElementById(mode+'dimWidth').value) || 2;
+                const H = parseFloat(document.getElementById(mode+'dimHeight').value) || 2;
+                const area = 2 * (L*W + L*H + W*H);
+                // Tipo de forno influencia o custo: factores arbitrários
+                const type = document.getElementById(mode+'furnaceType').value;
+                const typeFactorMap = {
+                    'chamber': 1.0,
+                    'tunnel': 1.3,
+                    'rotary': 1.4,
+                    'pusher': 1.2,
+                    'pit': 1.1
+                };
+                const typeFactor = typeFactorMap[type] || 1.0;
+                // Combustível: mudança de combustível aumenta CAPEX
+                const fuel = document.getElementById(mode+'fuelType').value;
+                const fuelFactorMap = {
+                    'natural-gas': 1.0,
+                    'biomethane': 1.05,
+                    'lpg': 1.10,
+                    'oil': 1.15,
+                    'electricity': 1.2,
+                    'hydrogen': 1.3,
+                    'coal': 0.9
+                };
+                const fuelFactor = fuelFactorMap[fuel] || 1.0;
+                // Isolamento: maior espessura aumenta custo; microporoso e refractário são mais caros
+                const insMat = document.getElementById(mode+'insulationMaterial').value;
+                const insFactorMap = {
+                    'ceramic-fiber': 1.0,
+                    'mineral-wool': 0.9,
+                    'glass-wool': 0.8,
+                    'refractory-brick': 1.4,
+                    'foam-refractory': 1.2,
+                    'microporous': 1.5
+                };
+                const insFactor = insFactorMap[insMat] || 1.0;
+                const thickness = parseFloat(document.getElementById(mode+'insulationThickness').value) || 200;
+                const thickFactor = 1 + (thickness - 200) / 1000; // cada 100 mm extra aumenta ~10%
+                // Cálculo final: custo base por m2 * área * factores
+                const baseCostPerM2 = 600; // € por m² de área de forno (valor simplificado)
+                capex = baseCostPerM2 * area * typeFactor * fuelFactor * insFactor * thickFactor;
+                // OPEX anual estimado como 10% do CAPEX (poderia incluir manutenção, mão-de-obra, etc.)
+                opex = capex * 0.10;
+            }
+            // Armazenar no estado global
+            appData.investment = { capex, opex };
+            // Mostrar resultados na UI
+            document.getElementById('investResults').innerHTML = `
+                <p><strong>CAPEX estimado:</strong> €${capex.toLocaleString(undefined, {maximumFractionDigits:0})}</p>
+                <p><strong>OPEX anual estimado:</strong> €${opex.toLocaleString(undefined, {maximumFractionDigits:0})}</p>
+            `;
+            // Actualizar estado do menu
+            updateMenuUI();
+        }
+
+        /*
+         * Calcula e apresenta uma comparação de consumo e custo energético para os fornos
+         * actual e proposto, de acordo com o perfil de carga. Gera gráficos para
+         * períodos diário (24h), semanal (168h), mensal (12 meses) e anual, bem
+         * como uma tabela comparativa com valores em kWh e em €.
+         */
+        function runSimulationComparison() {
+            // Certifica que os perfis e simulações foram calculados
+            if(!appData.loadProfile || appData.loadProfile.length === 0) {
+                alert('Erro: Perfil de carga não definido. Gerar ou importar perfil no Menu 3.');
+                return;
+            }
+            // Garante que as performances dos fornos estão calculadas
+            if(!appData.furnace.perf) calculateFurnace('current');
+            if(!appData.proposed.perf) calculateFurnace('proposed');
+            if(!appData.furnace.perf || !appData.proposed.perf) {
+                alert('Erro: Calcule a performance dos fornos nos menus 4 e 5.');
+                return;
+            }
+            const lp = appData.loadProfile;
+            // Média do perfil para ajustar eficiência
+            const avgLoad = lp.reduce((a,b)=>a+b,0) / lp.length;
+            // Derive adjusted efficiencies
+            const wallCurr = appData.furnace.perf.wallLoss;
+            const wallProp = appData.proposed.perf.wallLoss;
+            const totalInputCurr = appData.furnace.perf.totalInput;
+            const totalInputProp = appData.proposed.perf.totalInput;
+            const effCurr = (avgLoad + wallCurr) / totalInputCurr;
+            const effProp = (avgLoad + wallProp) / totalInputProp;
+            // Preços por kWh segundo combustível
+            const fuelPriceMap = {
+                'natural-gas': parseFloat(document.getElementById('priceGas').value) || 0,
+                'biomethane': parseFloat(document.getElementById('priceBio').value) || 0,
+                'lpg': parseFloat(document.getElementById('priceLPG').value) || 0,
+                'oil': parseFloat(document.getElementById('priceOil').value) || 0,
+                'electricity': parseFloat(document.getElementById('priceElec').value) || 0,
+                'hydrogen': parseFloat(document.getElementById('priceElec').value) || 0,
+                'coal': parseFloat(document.getElementById('priceGas').value) || 0
+            };
+            const fuelCurr = document.getElementById('fuelType').value;
+            const fuelProp = document.getElementById('prop_fuelType').value;
+            const priceCurr = fuelPriceMap[fuelCurr] || 0;
+            const priceProp = fuelPriceMap[fuelProp] || 0;
+            // Arrays para períodos
+            const dailyCurr = [], dailyProp = [];
+            const weeklyCurr = [], weeklyProp = [];
+            const monthlyCurr = Array(12).fill(0), monthlyProp = Array(12).fill(0);
+            const monthlyHours = [31,28,31,30,31,30,31,31,30,31,30,31].map(d => d*24);
+            let monthIndex = 0, monthHourCount = 0;
+            // Totais anuais
+            let totalKWhCurr = 0, totalKWhProp = 0;
+            let totalCostCurr = 0, totalCostProp = 0;
+            // Loop pelas 8760 horas
+            for(let i=0; i<lp.length; i++) {
+                const load = lp[i];
+                // Potência de saída (kW)
+                const powerOutCurr = load + wallCurr;
+                const powerOutProp = load + wallProp;
+                // Potência de entrada (kW) = saída / eficiência
+                const powerInCurr = powerOutCurr / effCurr;
+                const powerInProp = powerOutProp / effProp;
+                // Consumo energético (kWh) = potência
+                const kWhCurr = powerInCurr;
+                const kWhProp = powerInProp;
+                // Acumular totai e custo
+                totalKWhCurr += kWhCurr;
+                totalKWhProp += kWhProp;
+                totalCostCurr += kWhCurr * priceCurr;
+                totalCostProp += kWhProp * priceProp;
+                // Preencher arrays diários (0-23) e semanais (0-167)
+                if(i < 24) {
+                    dailyCurr.push(kWhCurr);
+                    dailyProp.push(kWhProp);
+                }
+                if(i < 168) {
+                    weeklyCurr.push(kWhCurr);
+                    weeklyProp.push(kWhProp);
+                }
+                // Mensal
+                monthlyCurr[monthIndex] += kWhCurr;
+                monthlyProp[monthIndex] += kWhProp;
+                monthHourCount++;
+                if(monthHourCount >= monthlyHours[monthIndex]) {
+                    monthIndex++;
+                    monthHourCount = 0;
+                }
+            }
+            // Construir resultados de comparação por período
+            const monthLabels = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            // Mostrar gráfico e tabela
+            const container = document.getElementById('sim-comparison-results');
+            let html = '';
+            html += '<div class="chart-container"><canvas id="simDailyChart"></canvas></div>';
+            html += '<div class="chart-container"><canvas id="simWeeklyChart"></canvas></div>';
+            html += '<div class="chart-container"><canvas id="simMonthlyChart"></canvas></div>';
+            // Tabela comparativa
+            const annualDiffKWh = totalKWhCurr - totalKWhProp;
+            const annualDiffCost = totalCostCurr - totalCostProp;
+            html += '<div style="overflow-x:auto; margin-top:20px;"><table class="compare-table"><thead><tr><th>Período</th><th>Consumo Atual (kWh)</th><th>Consumo Proposto (kWh)</th><th>Diferença (kWh)</th><th>Custo Atual (€)</th><th>Custo Proposto (€)</th><th>Diferença (€)</th></tr></thead><tbody>';
+            // Diária (média das 24h)
+            const sumDayCurr = dailyCurr.reduce((a,b)=>a+b,0);
+            const sumDayProp = dailyProp.reduce((a,b)=>a+b,0);
+            const diffDayK = sumDayCurr - sumDayProp;
+            const costDayCurr = sumDayCurr * priceCurr;
+            const costDayProp = sumDayProp * priceProp;
+            const diffDayC = costDayCurr - costDayProp;
+            html += `<tr><td>Diário</td><td>${sumDayCurr.toFixed(0)}</td><td>${sumDayProp.toFixed(0)}</td><td>${diffDayK.toFixed(0)}</td><td>€${costDayCurr.toFixed(0)}</td><td>€${costDayProp.toFixed(0)}</td><td>€${diffDayC.toFixed(0)}</td></tr>`;
+            // Semanal (média das primeiras 168h)
+            const sumWeekCurr = weeklyCurr.reduce((a,b)=>a+b,0);
+            const sumWeekProp = weeklyProp.reduce((a,b)=>a+b,0);
+            const diffWeekK = sumWeekCurr - sumWeekProp;
+            const costWeekCurr = sumWeekCurr * priceCurr;
+            const costWeekProp = sumWeekProp * priceProp;
+            const diffWeekC = costWeekCurr - costWeekProp;
+            html += `<tr><td>Semanal</td><td>${sumWeekCurr.toFixed(0)}</td><td>${sumWeekProp.toFixed(0)}</td><td>${diffWeekK.toFixed(0)}</td><td>€${costWeekCurr.toFixed(0)}</td><td>€${costWeekProp.toFixed(0)}</td><td>€${diffWeekC.toFixed(0)}</td></tr>`;
+            // Mensal (total anual dividido por 12)
+            const annualKWhCurr = totalKWhCurr;
+            const annualKWhProp = totalKWhProp;
+            const diffAnnualK = annualDiffKWh;
+            const annualCostCurr = totalCostCurr;
+            const annualCostProp = totalCostProp;
+            const diffAnnualC = annualDiffCost;
+            const avgMonthCurr = annualKWhCurr / 12;
+            const avgMonthProp = annualKWhProp / 12;
+            const avgMonthCostCurr = annualCostCurr / 12;
+            const avgMonthCostProp = annualCostProp / 12;
+            html += `<tr><td>Mensal (média)</td><td>${avgMonthCurr.toFixed(0)}</td><td>${avgMonthProp.toFixed(0)}</td><td>${(avgMonthCurr-avgMonthProp).toFixed(0)}</td><td>€${avgMonthCostCurr.toFixed(0)}</td><td>€${avgMonthCostProp.toFixed(0)}</td><td>€${(avgMonthCostCurr-avgMonthCostProp).toFixed(0)}</td></tr>`;
+            // Anual
+            html += `<tr><td>Anual</td><td>${annualKWhCurr.toFixed(0)}</td><td>${annualKWhProp.toFixed(0)}</td><td>${diffAnnualK.toFixed(0)}</td><td>€${annualCostCurr.toFixed(0)}</td><td>€${annualCostProp.toFixed(0)}</td><td>€${diffAnnualC.toFixed(0)}</td></tr>`;
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+            // Criar gráficos
+            // Gráfico diário
+            const ctxD = document.getElementById('simDailyChart').getContext('2d');
+            if(charts.simDaily) charts.simDaily.destroy();
+            charts.simDaily = new Chart(ctxD, {
+                type:'line',
+                data:{
+                    labels: Array.from({length:24},(_,i)=>i+'h'),
+                    datasets:[
+                        { label:'Atual', data: dailyCurr, borderColor:'#ff5722', fill:false },
+                        { label:'Proposto', data: dailyProp, borderColor:'#4CAF50', fill:false }
+                    ]
+                },
+                options:{ responsive:true, maintainAspectRatio:false, aspectRatio:2 }
+            });
+            // Gráfico semanal
+            const ctxW = document.getElementById('simWeeklyChart').getContext('2d');
+            if(charts.simWeekly) charts.simWeekly.destroy();
+            charts.simWeekly = new Chart(ctxW, {
+                type:'line',
+                data:{
+                    labels: Array.from({length:168},(_,i)=>{
+                        const d=Math.floor(i/24)+1; const h=i%24; return 'D'+d+' '+h+'h';
+                    }),
+                    datasets:[
+                        { label:'Atual', data: weeklyCurr, borderColor:'#ff9800', fill:false },
+                        { label:'Proposto', data: weeklyProp, borderColor:'#009688', fill:false }
+                    ]
+                },
+                options:{ responsive:true, maintainAspectRatio:false, aspectRatio:2 }
+            });
+            // Gráfico mensal
+            const ctxM = document.getElementById('simMonthlyChart').getContext('2d');
+            if(charts.simMonthly) charts.simMonthly.destroy();
+            charts.simMonthly = new Chart(ctxM, {
+                type:'bar',
+                data:{
+                    labels: monthLabels,
+                    datasets:[
+                        { label:'Atual', data: monthlyCurr, backgroundColor:'rgba(255,87,34,0.5)', borderColor:'#ff5722', borderWidth:1 },
+                        { label:'Proposto', data: monthlyProp, backgroundColor:'rgba(76,175,80,0.5)', borderColor:'#4CAF50', borderWidth:1 }
+                    ]
+                },
+                options:{ responsive:true, maintainAspectRatio:false, aspectRatio:2 }
+            });
+            // Guardar resultados para futuros cálculos de ROI
+            appData.simComparison = {
+                daily:{ kWh:{curr:sumDayCurr, prop:sumDayProp}, cost:{curr:costDayCurr, prop:costDayProp} },
+                weekly:{ kWh:{curr:sumWeekCurr, prop:sumWeekProp}, cost:{curr:costWeekCurr, prop:costWeekProp} },
+                monthly:{ kWh:{curr:avgMonthCurr, prop:avgMonthProp}, cost:{curr:avgMonthCostCurr, prop:avgMonthCostProp} },
+                annual:{ kWh:{curr:annualKWhCurr, prop:annualKWhProp}, cost:{curr:annualCostCurr, prop:annualCostProp} },
+                priceCurr: priceCurr,
+                priceProp: priceProp
+            };
+            updateMenuUI();
+        }
+
+        /*
+         * Calcula o retorno do investimento (ROI) utilizando os resultados da
+         * simulação comparativa e os valores de CAPEX/OPEX fornecidos no menu
+         * de investimento. O ROI é apresentado como tempo de retorno (payback)
+         * e taxa de retorno simples.
+         */
+        function calculateROI() {
+            if(!appData.investment || !appData.simComparison) {
+                alert('Antes de calcular o ROI, preencha o investimento (Menu 6) e gere a simulação (Menu 7).');
+                return;
+            }
+            const capex = appData.investment.capex;
+            const opex = appData.investment.opex;
+            const annualCostCurr = appData.simComparison.annual.cost.curr + opex;
+            const annualCostProp = appData.simComparison.annual.cost.prop;
+            const savings = annualCostCurr - annualCostProp;
+            const payback = savings > 0 ? capex / savings : Infinity;
+            const roi = savings / capex;
+            appData.roiResults = { capex, opex, savings, payback, roi };
+            // Mostrar
+            document.getElementById('roiResults').innerHTML = `
+                <p><strong>CAPEX:</strong> €${capex.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+                <p><strong>OPEX anual:</strong> €${opex.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+                <p><strong>Poupança anual estimada:</strong> €${savings.toLocaleString(undefined,{maximumFractionDigits:0})}</p>
+                <p><strong>Payback:</strong> ${payback === Infinity ? 'N/A' : payback.toFixed(1)+' anos'}</p>
+                <p><strong>ROI (taxa simples):</strong> ${(roi*100).toFixed(1)}%</p>
+            `;
+            updateMenuUI();
+        }
+
+        /*
+         * Exporta os dados do simulador (appData) para um ficheiro JSON. Utiliza
+         * a API Blob para gerar um objecto descarregável pelo utilizador.
+         */
+        function exportData() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'KHOVENSIM_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        /*
+         * Importa dados de um ficheiro JSON e substitui o estado global (appData).
+         * Após o carregamento, actualiza a interface para reflectir os dados importados.
+         */
+        function importData() {
+            const fileInput = document.getElementById('jsonFileInput');
+            const file = fileInput.files[0];
+            if(!file) {
+                alert('Seleccione um ficheiro JSON.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    appData = data;
+                    alert('Dados importados com sucesso! Note que deve navegar pelos menus para actualizar os campos.');
+                    updateMenuUI();
+                } catch(err) {
+                    alert('Erro ao ler o ficheiro JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /*
+         * Compara múltiplos ficheiros JSON seleccionados e apresenta uma tabela
+         * comparativa contendo indicadores principais (consumo anual, custo anual,
+         * poupanças, CAPEX, OPEX e ROI). Estes ficheiros são lidos em memória
+         * sem serem guardados no estado global.
+         */
+        function compareJsonFiles() {
+            const files = document.getElementById('multiJsonInput').files;
+            if(!files || files.length === 0) {
+                alert('Seleccione pelo menos um ficheiro JSON para comparar.');
+                return;
+            }
+            const results = [];
+            let readCount = 0;
+            for(let i=0; i<files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        const sim = data.simComparison;
+                        const invest = data.investment;
+                        const roi = data.roiResults;
+                        // Extrair métricas chave
+                        const obj = {
+                            name: files[i].name,
+                            kWhCurr: sim ? (sim.annual.kWh.curr || 0) : 0,
+                            kWhProp: sim ? (sim.annual.kWh.prop || 0) : 0,
+                            costCurr: sim ? (sim.annual.cost.curr || 0) : 0,
+                            costProp: sim ? (sim.annual.cost.prop || 0) : 0,
+                            capex: invest ? (invest.capex || 0) : 0,
+                            opex: invest ? (invest.opex || 0) : 0,
+                            savings: roi ? (roi.savings || 0) : 0,
+                            payback: roi ? (roi.payback || 0) : 0,
+                            roiPct: roi ? (roi.roi || 0) : 0
+                        };
+                        results.push(obj);
+                    } catch(err) {
+                        alert('Erro ao ler ficheiro '+files[i].name+': '+err.message);
+                    }
+                    readCount++;
+                    if(readCount === files.length) {
+                        // Todos os ficheiros processados, construir tabela
+                        let html = '<div style="overflow-x:auto"><table class="compare-table"><thead><tr><th>Ficheiro</th><th>Consumo Atual (kWh)</th><th>Consumo Proposto (kWh)</th><th>Custo Atual (€)</th><th>Custo Proposto (€)</th><th>CAPEX (€)</th><th>OPEX (€)</th><th>Poupança (€)</th><th>Payback (anos)</th><th>ROI (%)</th></tr></thead><tbody>';
+                        results.forEach(r => {
+                            html += `<tr><td>${r.name}</td><td>${r.kWhCurr.toFixed(0)}</td><td>${r.kWhProp.toFixed(0)}</td><td>€${r.costCurr.toFixed(0)}</td><td>€${r.costProp.toFixed(0)}</td><td>€${r.capex.toFixed(0)}</td><td>€${r.opex.toFixed(0)}</td><td>€${r.savings.toFixed(0)}</td><td>${r.payback === Infinity ? 'N/A' : r.payback.toFixed(1)}</td><td>${(r.roiPct*100).toFixed(1)}%</td></tr>`;
+                        });
+                        html += '</tbody></table></div>';
+                        document.getElementById('compareResults').innerHTML = html;
+                    }
+                };
+                reader.readAsText(files[i]);
+            }
+        }
+
+    </script>
+</body>
+</html>
