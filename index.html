@@ -420,6 +420,7 @@
                         <button class="tab-button" onclick="switchResultTab('res-monthly')">Mensal</button>
                         <button class="tab-button" onclick="switchResultTab('res-hist')">Histograma</button>
                         <button class="tab-button" onclick="switchResultTab('res-summary')">Resumo</button>
+                            <button class="tab-button" onclick="switchResultTab('res-hourly')">Anual Horário</button>
                     </div>
                     <div id="res-daily" class="res-tab-content active"><div class="chart-container"><canvas id="chartDay"></canvas></div></div>
                     <div id="res-weekly" class="res-tab-content hidden"><div class="chart-container"><canvas id="chartWeek"></canvas></div></div>
@@ -428,6 +429,9 @@
                     <div id="res-summary" class="res-tab-content hidden">
                         <div class="table-responsive"><table><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody id="summaryTable"></tbody></table></div>
                     </div>
+                        <div id="res-hourly" class="res-tab-content hidden"><div class="chart-container"><canvas id="chartHourly"></canvas></div>
+                            <div style="text-align:right; margin-top:10px;"><button class="btn btn-secondary" onclick="exportLoadProfileCSV()">⬇️ Exportar CSV</button></div>
+                        </div>
                 </div>
                 <div class="nav-buttons">
                     <button type="button" class="btn btn-secondary" onclick="goToSection(2)">← Anterior</button>
@@ -516,6 +520,9 @@
                         <div class="summary-card"><div class="label">Perdas Exaustão</div><div class="value" id="res-curr-flue">0</div><small>%</small></div>
                     </div>
                 </div>
+
+                <!-- Texto descritivo do forno atual -->
+                <div id="desc-current" class="hidden" style="margin-top:15px; font-size:0.9em; background:#f5f5f5; padding:10px; border-radius:5px; line-height:1.4;"></div>
 
                 <div class="nav-buttons">
                     <button class="btn btn-secondary" onclick="goToSection(3)">← Anterior</button>
@@ -639,6 +646,9 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Texto descritivo do forno proposto -->
+                <div id="desc-prop" class="hidden" style="margin-top:15px; font-size:0.9em; background:#f1f8e9; padding:10px; border-radius:5px; line-height:1.4;"></div>
 
                 <div class="nav-buttons">
                     <button class="btn btn-secondary" onclick="goToSection(4)">← Anterior</button>
@@ -917,6 +927,13 @@
                 profile.push(Math.max(min,val));
             }
             appData.loadProfile = profile;
+
+        // Calcular estatísticas de carga para utilização posterior (potência média e máxima)
+        // Guardar estatísticas para comparação: média simples e pico máximo (kW)
+        const sum = profile.reduce((a,b) => a + b, 0);
+        const avgLoad = sum / profile.length;
+        const maxLoad = Math.max(...profile);
+        appData.loadStats = { avg: avgLoad, max: maxLoad };
             if(!silent) {
                 renderAllCharts(profile);
                 document.getElementById('loadProfileResults').classList.remove('hidden');
@@ -972,6 +989,33 @@
                  <tr><td>Potência Média</td><td>${avg.toFixed(1)} kW</td></tr>
                  <tr><td>Pico Máximo</td><td>${max.toFixed(1)} kW</td></tr>
              `;
+
+             // Gráfico anual horário (8760 horas)
+             if(document.getElementById('chartHourly')) {
+                 const hourLabels = Array.from({length:profile.length}, (_,i) => (i+1).toString());
+                 createChart('chartHourly', 'line', hourLabels, profile, 'Perfil Horário (kW)', '#2196F3');
+             }
+        }
+
+        // Exportar o perfil de carga anual para CSV (8760 horas)
+        function exportLoadProfileCSV() {
+            if(!appData.loadProfile || !appData.loadProfile.length) { alert('Gere ou importe primeiro o perfil de carga.'); return; }
+            const start = new Date(2025,0,1);
+            let csv = 'DataHora;kW\n';
+            appData.loadProfile.forEach((val, idx) => {
+                const date = new Date(start.getTime() + idx*3600000);
+                const iso = date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0')+' '+String(date.getHours()).padStart(2,'0')+':00';
+                csv += iso + ';' + val.toFixed(2) + '\n';
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'perfil_carga_8760h.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function createChart(id, type, labels, data, label, color, data2=null, label2=null, color2=null) {
@@ -1076,6 +1120,9 @@
                  document.getElementById('res-curr-wall').innerText = wallLoss.toFixed(1);
                  document.getElementById('res-curr-flue').innerText = flueLoss.toFixed(1);
                  document.getElementById('res-curr-avg-pow').innerText = avgLoad.toFixed(1);
+
+                // Actualize descrição do forno atual
+                updateFurnaceDescription('current');
              } else {
                  appData.proposed.perf = res;
                  appData.proposed.data = dataObj;
@@ -1102,7 +1149,70 @@
                      
                      document.getElementById('prop-comparison-container').classList.remove('hidden');
                  }
+
+                // Actualize descrição do forno proposto
+                updateFurnaceDescription('proposed');
              }
+        }
+
+        // Gerar descrição textual para o forno atual/proposto com comparação à carga
+        function updateFurnaceDescription(mode) {
+            // Garantir que estatísticas de carga existem
+            if(!appData.loadStats) return;
+            const avgProfile = appData.loadStats.avg || 0;
+            const maxProfile = appData.loadStats.max || 0;
+            const prefix = mode === 'proposed' ? 'prop_' : '';
+            const fType = document.getElementById(prefix+'furnaceType')?.value || '';
+            const bType = document.getElementById(prefix+'burnerType')?.value || '';
+            const fuel = document.getElementById(prefix+'fuelType')?.value || '';
+            const L = parseFloat(document.getElementById(prefix+'dimLength')?.value) || 0;
+            const W = parseFloat(document.getElementById(prefix+'dimWidth')?.value) || 0;
+            const H = parseFloat(document.getElementById(prefix+'dimHeight')?.value) || 0;
+            const T = parseFloat(document.getElementById(prefix+'operatingTemp')?.value) || 0;
+            const ex = parseFloat(document.getElementById(prefix+'excessAir')?.value) || 0;
+
+            // Obter resultados de performance
+            const perf = mode === 'proposed' ? appData.proposed.perf : appData.furnace.perf;
+            if(!perf) return;
+            const totalInput = perf.totalInput || 0;
+
+            // Tabelas de nomes amigáveis
+            const furnaceNames = {
+                'chamber': 'câmara', 'pit': 'poço', 'pusher': 'empurrador', 'tunnel': 'túnel', 'rotary': 'rotativo'
+            };
+            const burnerNames = {
+                'atmospheric': 'atmosférico',
+                'forced-air': 'ar forçado',
+                'flat-flame': 'chama plana',
+                'high-velocity': 'alta velocidade',
+                'preheated': 'pré‑aquecido',
+                'recuperative': 'recuperativo',
+                'oxy-fuel': 'oxicombustão'
+            };
+            const fuelNames = {
+                'natural-gas': 'gás natural',
+                'biomethane': 'biometano',
+                'lpg': 'GLP',
+                'oil': 'óleo combustível',
+                'electric': 'eletricidade',
+                'hydrogen': 'hidrogénio',
+                'coal': 'carvão'
+            };
+
+            let obs = '';
+            if(totalInput <= maxProfile) {
+                obs = 'A potência simulada está abaixo do pico máximo do perfil de carga, garantindo capacidade suficiente.';
+            } else if(totalInput <= maxProfile * 1.2) {
+                obs = 'A potência simulada aproxima‑se do pico máximo do perfil; recomenda‑se avaliar a capacidade de fornecimento.';
+            } else {
+                obs = 'A potência simulada excede o pico máximo do perfil. Pode ser necessário reforçar a potência disponível ou otimizar a operação.';
+            }
+            const txt = `<strong>Descrição:</strong> Forno do tipo ${furnaceNames[fType] || fType}, com queimador ${burnerNames[bType] || bType} alimentado a ${fuelNames[fuel] || fuel}. As dimensões internas são ${L}×${W}×${H}\u00a0m e a temperatura de operação é ${T}\u00a0°C com excesso de ar de ${ex}%. <br><strong>Avaliação:</strong> A potência simulada é ${totalInput.toFixed(1)}\u00a0kW, enquanto a potência média do perfil de carga é ${avgProfile.toFixed(1)}\u00a0kW e o pico máximo é ${maxProfile.toFixed(1)}\u00a0kW. ${obs}`;
+            const el = document.getElementById(mode === 'proposed' ? 'desc-prop' : 'desc-current');
+            if(el) {
+                el.innerHTML = txt;
+                el.classList.remove('hidden');
+            }
         }
 
         function diffHTML(val, positiveIsGood) {
@@ -1126,12 +1236,177 @@
             });
             updateImpactAnalysis();
         }
-        function generateBudget() { /* Logic from previous context */ renderBudgetTable(); }
-        function renderBudgetTable() { /* Logic from previous context */ }
-        function calculateBudgetTotal() { /* Logic */ }
-        function toggleBudgetMode() { /* Logic */ }
-        function updateBudgetItem() { /* Logic */ }
-        function updatePCI(m){/*...*/}
+        function generateBudget() {
+            if(appData.budget.manual) {
+                // No modo manual, o utilizador irá inserir os valores directamente; apenas recalculamos total
+                calculateBudgetTotal();
+            } else {
+                renderBudgetTable();
+            }
+        }
+        // Geração automática do orçamento detalhado com base no forno proposto
+        function renderBudgetTable() {
+            // Garantir que existem dados do forno proposto
+            if(!appData.proposed || !appData.proposed.data || !appData.proposed.data.furnaceType) {
+                alert('Defina e simule o forno proposto antes de gerar o orçamento.');
+                return;
+            }
+            const data = appData.proposed.data;
+            const perf = appData.proposed.perf || {};
+            const items = [];
+
+            // Forno principal – custos aproximados em função do tipo
+            let furnaceCost = 0;
+            let furnaceDesc = '';
+            switch(data.furnaceType) {
+                case 'chamber': furnaceCost = 50000; furnaceDesc = 'Forno de câmara (operação por lotes)'; break;
+                case 'tunnel': furnaceCost = 200000; furnaceDesc = 'Forno de túnel (operação contínua)'; break;
+                case 'rotary': furnaceCost = 120000; furnaceDesc = 'Forno rotativo para materiais granulares'; break;
+                case 'pusher': furnaceCost = 180000; furnaceDesc = 'Forno empurrador de funcionamento contínuo'; break;
+                case 'pit': furnaceCost = 80000; furnaceDesc = 'Forno do tipo poço'; break;
+                default: furnaceCost = 50000; furnaceDesc = 'Forno industrial';
+            }
+            items.push({ desc: furnaceDesc, qty: 1, unit: 'unid', unitPrice: furnaceCost, total: furnaceCost });
+
+            // Queimador
+            let burnerCost = 0;
+            let burnerDesc = '';
+            switch(data.burnerType) {
+                case 'atmospheric': burnerCost = 5000; burnerDesc = 'Queimador atmosférico'; break;
+                case 'forced-air': burnerCost = 12000; burnerDesc = 'Queimador de ar forçado'; break;
+                case 'flat-flame': burnerCost = 15000; burnerDesc = 'Queimador de chama plana'; break;
+                case 'high-velocity': burnerCost = 20000; burnerDesc = 'Queimador de alta velocidade'; break;
+                case 'preheated': burnerCost = 18000; burnerDesc = 'Queimador pré‑aquecido'; break;
+                case 'recuperative': burnerCost = 25000; burnerDesc = 'Queimador recuperativo com trocador'; break;
+                case 'oxy-fuel': burnerCost = 30000; burnerDesc = 'Queimador de oxicombustão'; break;
+                default: burnerCost = 12000; burnerDesc = 'Queimador industrial';
+            }
+            items.push({ desc: burnerDesc, qty: 1, unit: 'unid', unitPrice: burnerCost, total: burnerCost });
+
+            // Alimentação e infraestrutura de combustível
+            let supplyCost = 0;
+            let supplyDesc = '';
+            switch(data.fuelType) {
+                case 'electric': supplyCost = 30000; supplyDesc = 'Adequação da instalação eléctrica e resistências'; break;
+                case 'hydrogen': supplyCost = 70000; supplyDesc = 'Rede e armazenamento de hidrogénio verde (incl. segurança)'; break;
+                case 'biomethane': supplyCost = 10000; supplyDesc = 'Adaptação de rede para biometano'; break;
+                case 'lpg': supplyCost = 15000; supplyDesc = 'Instalação de depósito e rede de GLP'; break;
+                case 'oil': supplyCost = 12000; supplyDesc = 'Instalação de tanque e linha de óleo combustível'; break;
+                case 'coal': supplyCost = 8000; supplyDesc = 'Sistema de armazenamento e alimentação de carvão'; break;
+                default: supplyCost = 8000; supplyDesc = 'Adequação de rede de gás natural';
+            }
+            items.push({ desc: supplyDesc, qty: 1, unit: 'unid', unitPrice: supplyCost, total: supplyCost });
+
+            // Sistema de isolamento – custo proporcional à área envolvente
+            const L = parseFloat(data.dimLength) || 5;
+            const W = parseFloat(data.dimWidth) || 2;
+            const H = parseFloat(data.dimHeight) || 2;
+            const area = 2 * (L * W + L * H + W * H);
+            const insulationCostPerM2 = 150; // €/m² – fornecimento e aplicação
+            const insCost = area * insulationCostPerM2;
+            items.push({ desc: 'Isolamento térmico (materiais e aplicação)', qty: area.toFixed(1), unit: 'm²', unitPrice: insulationCostPerM2, total: insCost });
+
+            // Sistema de controlo e instrumentação
+            const controlCost = 10000;
+            items.push({ desc: 'Sistema de controlo e automação (sensores, PLC, HMI)', qty: 1, unit: 'unid', unitPrice: controlCost, total: controlCost });
+
+            // Chaminé e exaustão
+            const stackCost = 15000;
+            items.push({ desc: 'Chaminé / sistema de exaustão com ventilador', qty: 1, unit: 'unid', unitPrice: stackCost, total: stackCost });
+
+            // Ligações eléctricas e quadros
+            const electricalCost = 8000;
+            items.push({ desc: 'Quadro eléctrico e cablagem', qty: 1, unit: 'unid', unitPrice: electricalCost, total: electricalCost });
+
+            // Obras civis e fundações
+            const civilCost = 12000;
+            items.push({ desc: 'Fundações e obras civis (base de suporte)', qty: 1, unit: 'unid', unitPrice: civilCost, total: civilCost });
+
+            // Montagem, comissionamento e formação
+            const installCost = 0.15 * (furnaceCost + burnerCost + supplyCost + insCost + controlCost + stackCost + electricalCost + civilCost);
+            items.push({ desc: 'Montagem, comissionamento e formação', qty: 1, unit: 'unid', unitPrice: installCost, total: installCost });
+
+            // Engenharia e projecto
+            const engineeringCost = 8000;
+            items.push({ desc: 'Projecto e engenharia', qty: 1, unit: 'unid', unitPrice: engineeringCost, total: engineeringCost });
+
+            // Calcular total geral
+            let total = 0;
+            items.forEach(it => { total += it.total; });
+            appData.budget.items = items;
+            appData.budget.total = total;
+
+            // Construir tabela HTML
+            let html = '';
+            items.forEach(it => {
+                html += `<tr><td>${it.desc}</td><td>${it.qty}</td><td>${it.unit}</td><td>${it.unitPrice.toLocaleString(undefined,{minimumFractionDigits:0, maximumFractionDigits:0})}</td><td>${it.total.toLocaleString(undefined,{minimumFractionDigits:0, maximumFractionDigits:0})}</td></tr>`;
+            });
+            document.getElementById('budgetTableBody').innerHTML = html;
+
+            // Mostrar resumo do âmbito do projecto
+            document.getElementById('project-scope-summary').classList.remove('hidden');
+
+            // Mapas de nomes de combustível para uso nas descrições
+            const fuelNamesMap = {
+                'natural-gas': 'gás natural',
+                'biomethane': 'biometano',
+                'lpg': 'GLP',
+                'oil': 'óleo combustível',
+                'electric': 'electricidade',
+                'hydrogen': 'hidrogénio',
+                'coal': 'carvão'
+            };
+            // Descrição dos trabalhos
+            let scopeDesc = `Substituição/instalação de um novo forno ${furnaceDesc.toLowerCase()}, equipado com ${burnerDesc.toLowerCase()} e adaptado para funcionar a ${fuelNamesMap[data.fuelType] || data.fuelType}. As obras incluem a demolição/retirada do equipamento existente, execução de fundações, montagem do forno, isolamento, instalação da chaminé, execução de redes de alimentação de combustível e energia eléctrica, bem como integração de sistemas de controlo e segurança.`;
+            // Medidas de eficiência
+            let scopeEff = 'Melhorias de eficiência incluem a utilização de isolamento adequado, optimização do excesso de ar, recuperação de calor (quando aplicável) e modernização do queimador para maior rendimento.';
+            // Complexidade
+            let scopeComplex = 'A complexidade é considerada média a alta devido à necessidade de adequação de infra‑estruturas e paragem prolongada de produção durante a montagem.';
+            // Descrição da solução
+            let scopeSolution = 'A solução proposta visa reduzir o consumo específico e as emissões, aumentando a eficiência do processo e permitindo flexibilidade para futuros vectores energéticos.';
+            document.getElementById('scope-desc').innerText = scopeDesc;
+            document.getElementById('scope-effic').innerText = scopeEff;
+            document.getElementById('scope-complex').innerText = scopeComplex;
+            document.getElementById('scope-solution').innerText = scopeSolution;
+        }
+        function calculateBudgetTotal() {
+            // Somar coluna Total da tabela quando em modo manual
+            let total = 0;
+            document.querySelectorAll('#budgetTableBody tr').forEach(row => {
+                const val = row.children[4]?.innerText || '0';
+                // remover separadores de milhar
+                const num = parseFloat(val.toString().replace(/\./g,'').replace(/,/g,'.'));
+                if(!isNaN(num)) total += num;
+            });
+            appData.budget.total = total;
+        }
+        function toggleBudgetMode() {
+            const mode = document.querySelector('input[name="budgetMode"]:checked').value;
+            appData.budget.manual = (mode === 'manual');
+            if(!appData.budget.manual) {
+                renderBudgetTable();
+            }
+        }
+        function updateBudgetItem() {
+            // Placeholder: nesta versão não é necessário pois o orçamento é calculado automaticamente.
+        }
+        // Actualiza o valor do PCI (poder calorífico inferior) consoante o combustível seleccionado
+        function updatePCI(m) {
+            const prefix = m === 'proposed' ? 'prop_' : '';
+            const fuel = document.getElementById(prefix + 'fuelType')?.value;
+            let pci = 38.5; // MJ/kg ou MJ/m³ dependendo do combustível
+            switch(fuel) {
+                case 'natural-gas': pci = 38.5; break; // MJ/m³
+                case 'biomethane': pci = 38.5; break; // idêntico ao gás natural
+                case 'lpg': pci = 46.0; break; // MJ/kg
+                case 'oil': pci = 42.0; break; // MJ/kg
+                case 'electric': pci = 3.6; break; // 1 kWh = 3,6 MJ
+                case 'hydrogen': pci = 120.0; break; // MJ/kg (33,3 kWh/kg)
+                case 'coal': pci = 24.0; break; // MJ/kg aproximado
+            }
+            const el = document.getElementById(prefix + 'calorificValue');
+            if(el) el.value = pci;
+        }
         
         // --- MENU 7: SIMULAÇÃO TÉCNICA ---
         function runFullSimulation() {
@@ -1213,7 +1488,178 @@
         function exportToJSON(){/*...*/} function importFromJSON(){/*...*/}
         function prepareComparison(){ alert("Versão PRO"); }
         window.generatePDFReport = function(){ alert("PDF"); }
-        function renderTrendChart() { /*...*/}
+        // Gráfico de evolução histórica e projeção futura dos preços dos combustíveis
+        function renderTrendChart() {
+            const ctx = document.getElementById('chartTrends').getContext('2d');
+            // Construir vetor de anos de 2015 a 2035
+            const years = [];
+            for(let y = 2015; y <= 2035; y++) years.push(y.toString());
+
+            // Valores base históricos para Portugal (€/kWh) extraídos de fontes oficiais
+            // Eletricidade (preços domésticos sem taxas) – tabela Countryeconomy (2015‑2025)
+            const elecBase = {
+                2015: 0.1150,
+                2016: 0.1193,
+                2017: 0.1268,
+                2018: 0.1248,
+                2019: 0.1252,
+                2020: 0.1186,
+                2021: 0.1318,
+                2022: 0.1540,
+                2023: 0.1600,
+                2024: 0.1580,
+                2025: 0.1590
+            };
+            const elec = [];
+            years.forEach((y,i) => {
+                const yr = parseInt(y);
+                if(elecBase[yr] !== undefined) elec.push(elecBase[yr]);
+                else {
+                    // Projeção: crescimento anual de 2% após 2025
+                    const last = elec[elec.length-1];
+                    elec.push(parseFloat((last * 1.02).toFixed(4)));
+                }
+            });
+
+            // Gás natural – preços regulamentados Escalão 2 (TudoLuzeGás) 2017‑2026
+            const gasBase = {
+                2015: 0.0580,
+                2016: 0.0550,
+                2017: 0.0547,
+                2018: 0.0544,
+                2019: 0.0528,
+                2020: 0.0493,
+                2021: 0.0486,
+                2022: 0.0544,
+                2023: 0.0559,
+                2024: 0.0598,
+                2025: 0.0601
+            };
+            const gas = [];
+            years.forEach(y => {
+                const yr = parseInt(y);
+                if(gasBase[yr] !== undefined) gas.push(gasBase[yr]);
+                else {
+                    // Projeção: crescimento anual de 1,5% após 2025
+                    const last = gas[gas.length-1];
+                    gas.push(parseFloat((last * 1.015).toFixed(4)));
+                }
+            });
+
+            // Biometano – custo do plano LNEG (~62 €/MWh ≈0,062 €/kWh). Assumimos estabilidade no curto prazo.
+            const bio = [];
+            years.forEach(() => bio.push(0.062));
+
+            // GLP – preços médios (ERSE 2024‑2025) convertidos para €/kWh (PCI 12,8 kWh/kg). Projeção 2%/ano
+            const lpgBase = {
+                2015: 0.050,
+                2016: 0.052,
+                2017: 0.054,
+                2018: 0.055,
+                2019: 0.058,
+                2020: 0.060,
+                2021: 0.065,
+                2022: 0.070,
+                2023: 0.075,
+                2024: 0.080,
+                2025: 0.090
+            };
+            const lpg = [];
+            years.forEach(y => {
+                const yr = parseInt(y);
+                if(lpgBase[yr] !== undefined) lpg.push(lpgBase[yr]);
+                else {
+                    const last = lpg[lpg.length-1];
+                    lpg.push(parseFloat((last * 1.02).toFixed(4)));
+                }
+            });
+
+            // Óleo combustível – valores aproximados para 2015‑2025; projeção 2%/ano
+            const oilBase = {
+                2015: 0.060,
+                2016: 0.065,
+                2017: 0.070,
+                2018: 0.075,
+                2019: 0.080,
+                2020: 0.075,
+                2021: 0.078,
+                2022: 0.079,
+                2023: 0.081,
+                2024: 0.082,
+                2025: 0.082
+            };
+            const oil = [];
+            years.forEach(y => {
+                const yr = parseInt(y);
+                if(oilBase[yr] !== undefined) oil.push(oilBase[yr]);
+                else {
+                    const last = oil[oil.length-1];
+                    oil.push(parseFloat((last * 1.02).toFixed(4)));
+                }
+            });
+
+            // Hidrogénio verde – valores estimados (€/kWh) decrescentes devido a economia de escala
+            const h2Base = {
+                2015: 0.200,
+                2016: 0.200,
+                2017: 0.195,
+                2018: 0.190,
+                2019: 0.185,
+                2020: 0.180,
+                2021: 0.175,
+                2022: 0.175,
+                2023: 0.180,
+                2024: 0.180,
+                2025: 0.180
+            };
+            const h2 = [];
+            years.forEach(y => {
+                const yr = parseInt(y);
+                if(h2Base[yr] !== undefined) h2.push(h2Base[yr]);
+                else {
+                    // Após 2025, decréscimo de 5% até atingir 0,12 €/kWh
+                    const last = h2[h2.length-1];
+                    const next = last * 0.95;
+                    h2.push(parseFloat((next < 0.12 ? 0.12 : next).toFixed(4)));
+                }
+            });
+
+            // Construir gráfico com múltiplas séries
+            if(window.trendChart) window.trendChart.destroy();
+            window.trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [
+                        { label: 'Eletricidade', data: elec, borderColor: '#667eea', backgroundColor: 'transparent', tension: 0.2 },
+                        { label: 'Gás Natural', data: gas, borderColor: '#ff9800', backgroundColor: 'transparent', tension: 0.2 },
+                        { label: 'Biometano', data: bio, borderColor: '#2196F3', backgroundColor: 'transparent', tension: 0.2 },
+                        { label: 'GLP', data: lpg, borderColor: '#9c27b0', backgroundColor: 'transparent', tension: 0.2 },
+                        { label: 'Óleo', data: oil, borderColor: '#795548', backgroundColor: 'transparent', tension: 0.2 },
+                        { label: 'Hidrogénio', data: h2, borderColor: '#4CAF50', backgroundColor: 'transparent', tension: 0.2 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: true, text: 'Preço (€/kWh)' },
+                            min: 0,
+                            grid: { color: '#eee' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Ano' },
+                            grid: { color: '#fafafa' }
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>
