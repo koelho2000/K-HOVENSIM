@@ -230,6 +230,24 @@
         .comp-diff-pos { color: green; font-weight: bold; }
         .comp-diff-neg { color: red; font-weight: bold; }
 
+        /* Páginas de relatório para pré‑visualização e exportação */
+        .report-page {
+            width: 210mm;
+            height: 297mm;
+            padding: 20mm;
+            box-sizing: border-box;
+            margin: 10px auto;
+            background: white;
+            color: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        .report-page h1,
+        .report-page h2,
+        .report-page h3 {
+            margin-top: 0;
+        }
+
         @media (max-width: 768px) {
             .form-row, .form-row.three-col { grid-template-columns: 1fr; }
             .menu-list { grid-template-columns: 1fr; }
@@ -421,6 +439,7 @@
                         <button class="tab-button" onclick="switchResultTab('res-monthly')">Mensal</button>
                         <button class="tab-button" onclick="switchResultTab('res-hist')">Histograma</button>
                         <button class="tab-button" onclick="switchResultTab('res-summary')">Resumo</button>
+                        <button class="tab-button" onclick="switchResultTab('res-hourly')">Horário</button>
                     </div>
                     <div id="res-daily" class="res-tab-content active"><div class="chart-container"><canvas id="chartDay"></canvas></div></div>
                     <div id="res-weekly" class="res-tab-content hidden"><div class="chart-container"><canvas id="chartWeek"></canvas></div></div>
@@ -428,6 +447,11 @@
                     <div id="res-hist" class="res-tab-content hidden"><div class="chart-container"><canvas id="chartHist"></canvas></div></div>
                     <div id="res-summary" class="res-tab-content hidden">
                         <div class="table-responsive"><table><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody id="summaryTable"></tbody></table></div>
+                    </div>
+                    <!-- Novo tab para gráfico horário anual e exportação CSV -->
+                    <div id="res-hourly" class="res-tab-content hidden">
+                        <div class="chart-container" style="height:300px;"><canvas id="chartHourly"></canvas></div>
+                        <div style="margin-top:10px; text-align:right;"><button class="btn btn-secondary" onclick="exportLoadProfileCSV()">Exportar CSV</button></div>
                     </div>
                 </div>
                 <!-- Análise textual do perfil de carga -->
@@ -720,12 +744,14 @@
                         <button class="tab-button active" onclick="switchCompTab('comp-daily')">Diário</button>
                         <button class="tab-button" onclick="switchCompTab('comp-monthly')">Mensal</button>
                         <button class="tab-button" onclick="switchCompTab('comp-yearly')">Anual</button>
+                        <button class="tab-button" onclick="switchCompTab('comp-hourly')">Horário</button>
                         <button class="tab-button" onclick="switchCompTab('comp-table')">Tabela Resumo</button>
                     </div>
 
                     <div id="comp-daily" class="comp-tab-content active"><div class="chart-container"><canvas id="compChartDaily"></canvas></div></div>
                     <div id="comp-monthly" class="comp-tab-content hidden"><div class="chart-container"><canvas id="compChartMonthly"></canvas></div></div>
                     <div id="comp-yearly" class="comp-tab-content hidden"><div class="chart-container"><canvas id="compChartYearly"></canvas></div></div>
+                    <div id="comp-hourly" class="comp-tab-content hidden"><div class="chart-container"><canvas id="compChartHourly"></canvas></div></div>
                     
                     <div id="comp-table" class="comp-tab-content hidden">
                         <div id="technicalTableContainer" style="margin-top:20px;"></div>
@@ -762,12 +788,30 @@
 
             <!-- 9. Relatório -->
             <div id="section-9" class="menu-content">
-                 <div class="section-title">9. Relatório</div>
-                 <div style="text-align:center; padding:40px;">
-                     <p>Gere o relatório final com todos os dados calculados.</p>
-                     <button class="btn btn-danger" onclick="generatePDFReport()">📄 Download PDF</button>
-                 </div>
-                 <div class="nav-buttons">
+                <div class="section-title">9. Relatório</div>
+                <p style="margin-bottom:15px;">Gerar um relatório completo com capa, índice, tabelas, gráficos, análises e conclusão. Utilize os botões abaixo para pré‑visualizar e exportar em PDF.</p>
+                <!-- Estrutura do relatório: lista as páginas e o conteúdo proposto. -->
+                <div style="background:#f9f9f9; border:1px solid #eee; padding:10px; margin-bottom:20px; border-radius:6px;">
+                    <h3>Estrutura do Relatório</h3>
+                    <ul style="list-style-type:disc; margin-left:20px; font-size:0.9em; line-height:1.5;">
+                        <li><strong>Capa</strong> – apresenta o título, subtítulo, data e identificação do projecto.</li>
+                        <li><strong>Índice</strong> – lista todas as secções do relatório.</li>
+                        <li><strong>Indicadores Energéticos</strong> – inclui uma tabela com os preços de cada combustível e um gráfico de evolução temporal.</li>
+                        <li><strong>Perfil de Carga</strong> – mostra os gráficos diário, mensal e anual e uma análise descritiva do perfil de consumo.</li>
+                        <li><strong>Forno Actual</strong> – descreve o forno existente, apresenta os resultados de performance e a adequação ao perfil de carga.</li>
+                        <li><strong>Forno Proposto</strong> – descreve a solução proposta, justificando alterações e comparando com o forno actual.</li>
+                        <li><strong>Orçamento e Investimento</strong> – detalha o orçamento itemizado e apresenta o valor total do investimento.</li>
+                        <li><strong>Análise Técnica &amp; Financeira</strong> – avalia os ganhos de eficiência, as poupanças económicas e o retorno do investimento.</li>
+                        <li><strong>Conclusões</strong> – resume os principais resultados, conclusões e recomendações.</li>
+                        <li><strong>Contra‑capa</strong> – fecha o relatório com informações finais ou contactos.</li>
+                    </ul>
+                </div>
+                <div class="form-row">
+                    <button class="btn btn-primary" onclick="generateReportPreview()">👁️ Pré‑visualizar Relatório</button>
+                    <button class="btn btn-danger" onclick="downloadReportPDF()" style="margin-left:20px;">📄 Exportar PDF</button>
+                </div>
+                <div id="reportPreview" style="margin-top:20px; max-height:70vh; overflow:auto; border:1px solid #ddd; background:#fff;"></div>
+                <div class="nav-buttons">
                     <button class="btn btn-secondary" onclick="goToSection(8)">← Anterior</button>
                     <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
                 </div>
@@ -833,6 +877,12 @@
             showMenu();
             if(appData.loadProfile.length === 0) generateLoadProfile(true);
             updateEnergyEquivalents();
+
+            // Renderizar imediatamente o gráfico de tendências para garantir que
+            // a secção "Evolução & Futuro" mostra dados ao abrir o relatório ou tab.
+            // Sem esta chamada, o canvas pode não conter dados quando a
+            // pré‑visualização ou o relatório são gerados.
+            try { renderTrendChart(); } catch(err) { /* nada */ }
         }
 
         function showMenu() {
@@ -1014,6 +1064,38 @@
                  <tr><td>Potência Média</td><td>${avg.toFixed(1)} kW</td></tr>
                  <tr><td>Pico Máximo</td><td>${max.toFixed(1)} kW</td></tr>
              `;
+
+            // Gráfico horário anual (8760 valores) se existir o canvas
+            const hourlyCanvas = document.getElementById('chartHourly');
+            if(hourlyCanvas) {
+                // Use índices como etiquetas para reduzir peso; poderá converter em datas/hora
+                const labels = Array.from({length: profile.length}, (_, i) => (i+1).toString());
+                createChart('chartHourly', 'line', labels, profile, 'Potência (kW)', '#607d8b');
+            }
+        }
+
+        /**
+         * Exporta o perfil de carga gerado (8760 horas) para um ficheiro CSV. Cada linha
+         * contém o índice da hora (1 a 8760) e o valor de potência correspondente em kW.
+         */
+        function exportLoadProfileCSV() {
+            if(!appData.loadProfile || !appData.loadProfile.length) {
+                alert('É necessário gerar o perfil de carga primeiro.');
+                return;
+            }
+            let csv = 'Hora;Potência (kW)\n';
+            appData.loadProfile.forEach((v, i) => {
+                csv += `${i+1};${v.toFixed(2)}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'perfil_carga_8760H.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function createChart(id, type, labels, data, label, color, data2=null, label2=null, color2=null) {
@@ -1155,11 +1237,17 @@
              const consHour = (totalInput * 3.6) / pci;
  
              const res = { avgLoad, wallLoss, flueLoss, efficiency, consHour, totalInput };
-             const dataObj = { 
+            const dataObj = { 
                  furnaceType: fType,
-                 burnerType: bType, fuelType: fuel, operatingTemp: T_op, excessAir: exAir,
+                 burnerType: bType,
+                 fuelType: fuel,
+                 operatingTemp: T_op,
+                 excessAir: exAir,
                  insulationMaterial: document.getElementById(prefix+'insulationMaterial').value,
-                 insulationThickness: insThick
+                 insulationThickness: insThick,
+                 dimLength: L,
+                 dimWidth: W,
+                 dimHeight: H
              };
  
              if(mode === 'current') {
@@ -1264,7 +1352,10 @@
                     insulationMaterial: 'material de isolamento',
                     insulationThickness: 'espessura do isolamento',
                     operatingTemp: 'temperatura de operação',
-                    excessAir: 'excesso de ar'
+                    excessAir: 'excesso de ar',
+                    dimLength: 'comprimento',
+                    dimWidth: 'largura',
+                    dimHeight: 'altura'
                 };
                 // Detectar diferenças
                 for(const k in paramMap) {
@@ -1539,6 +1630,16 @@
             let totalCurr = totalLoad / effCurr;
             let totalProp = totalLoad / effProp;
             createChart('compChartYearly', 'bar', ['Consumo Anual'], [totalCurr], 'Atual (MWh)', '#f44336', [totalProp], 'Proposto (MWh)', '#4CAF50');
+            // Horário anual comparativo (8760 pontos)
+            const currHourly = [];
+            const propHourly = [];
+            for(let i=0; i<profile.length; i++) {
+                const load = profile[i];
+                currHourly.push((load / effCurr));
+                propHourly.push((load / effProp));
+            }
+            const labelsHourly = Array.from({length: profile.length}, (_, i) => (i+1).toString());
+            createChart('compChartHourly', 'line', labelsHourly, currHourly, 'Atual (kW)', '#f44336', propHourly, 'Proposto (kW)', '#4CAF50');
 
             // Technical Table
             const pCurr = getFuelPricePerKWh(appData.furnace.data.fuelType || 'natural-gas');
@@ -1586,10 +1687,475 @@
             document.getElementById('financialTableContainer8').innerHTML = h;
         }
 
-        function exportToJSON(){/*...*/} function importFromJSON(){/*...*/}
-        function prepareComparison(){ alert("Versão PRO"); }
-        window.generatePDFReport = function(){ alert("PDF"); }
-        function renderTrendChart() { /*...*/}
+        // Exportar todos os dados para ficheiro JSON. Inclui valores de formulários,
+        // estados de rádio/checkbox e todo o objecto appData. Isto permite
+        // armazenar o estado completo para futura comparação ou restauro.
+        function exportToJSON() {
+            const formValues = {};
+            // Captura valores de todos os inputs, selects e textareas com id definido
+            document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+                // Para checkbox ou radio, guardar o estado checked quando existir id
+                if ((el.type === 'checkbox' || el.type === 'radio')) {
+                    formValues[el.id] = el.checked;
+                } else {
+                    formValues[el.id] = el.value;
+                }
+            });
+            // Captura valor seleccionado do grupo budgetMode (mesmo que não tenha id)
+            const budgetModeEl = document.querySelector('input[name="budgetMode"]:checked');
+            const budgetMode = budgetModeEl ? budgetModeEl.value : null;
+            const data = {
+                appData: appData,
+                formValues: formValues,
+                budgetMode: budgetMode
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'k_hovensim_projeto.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Importar dados a partir de um ficheiro JSON seleccionado. Restaura formulários e appData.
+        function importFromJSON() {
+            const input = document.getElementById('fileImport');
+            if(!input || !input.files || !input.files.length) {
+                alert('Seleccione um ficheiro JSON para importar.');
+                return;
+            }
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const obj = JSON.parse(e.target.result);
+                    if(obj.formValues) {
+                        Object.keys(obj.formValues).forEach(id => {
+                            const el = document.getElementById(id);
+                            if(el) {
+                                const val = obj.formValues[id];
+                                // Se for booleano, significa que é checkbox/radio; caso contrário, é valor
+                                if(typeof val === 'boolean') {
+                                    el.checked = val;
+                                } else {
+                                    el.value = val;
+                                }
+                            }
+                        });
+                    }
+                    if(obj.appData) {
+                        // Substituir campos principais de appData mantendo referência
+                        appData.client = obj.appData.client || {};
+                        appData.loadProfile = obj.appData.loadProfile || [];
+                        appData.loadParams = obj.appData.loadParams || {};
+                        appData.loadStats = obj.appData.loadStats || {};
+                        appData.furnace = obj.appData.furnace || {};
+                        appData.proposed = obj.appData.proposed || {};
+                        appData.budget = obj.appData.budget || {};
+                        appData.simResults = obj.appData.simResults || {};
+                    }
+                    // Restaurar estado do modo de orçamento, caso exista valor no ficheiro
+                    if(obj.budgetMode) {
+                        const bmRadio = document.querySelector(`input[name="budgetMode"][value="${obj.budgetMode}"]`);
+                        if(bmRadio) bmRadio.checked = true;
+                    }
+                    // Actualizar UI onde necessário
+                    updateEnergyEquivalents();
+                    if(appData.loadProfile && appData.loadProfile.length) {
+                        renderAllCharts();
+                        updateLoadProfileAnalysis();
+                    }
+                    // Actualizar descrições de fornos se existirem dados
+                    updateFurnaceDescription('current');
+                    updateFurnaceDescription('proposed');
+                    // Recriar tabela de orçamento caso importada
+                    if(document.querySelector('input[name="budgetMode"]')) {
+                        renderBudgetTable();
+                        calculateBudgetTotal();
+                    }
+                    alert('Projeto importado com sucesso.');
+                } catch(err) {
+                    console.error(err);
+                    alert('Erro ao importar o ficheiro: ' + err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Comparar vários projectos guardados em ficheiros JSON. Aceita até 10
+        // ficheiros seleccionados no input #comparisonFiles, lê os dados e cria
+        // uma tabela comparativa das principais métricas: eficiência e consumo
+        // de ambos os fornos, investimento total, poupança anual e payback.
+        function prepareComparison() {
+            const input = document.getElementById('comparisonFiles');
+            if(!input || !input.files || input.files.length === 0) {
+                alert('Seleccione um ou mais ficheiros JSON para comparar.');
+                return;
+            }
+            const files = Array.from(input.files).slice(0, 10);
+            const projects = [];
+            let processed = 0;
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const obj = JSON.parse(e.target.result);
+                        const p = { name: file.name.replace(/\.json$/i, '') };
+                        if(obj.appData) {
+                            const d = obj.appData;
+                            if(d.furnace && d.furnace.perf) {
+                                p.currEff = d.furnace.perf.efficiency;
+                                p.currCons = d.furnace.perf.consHour;
+                            }
+                            if(d.proposed && d.proposed.perf) {
+                                p.propEff = d.proposed.perf.efficiency;
+                                p.propCons = d.proposed.perf.consHour;
+                            }
+                            p.invest = d.budget && d.budget.total ? d.budget.total : 0;
+                            if(d.simResults) {
+                                p.savings = d.simResults.savings || 0;
+                                const capex = d.simResults.capex || p.invest;
+                                p.payback = p.savings > 0 ? capex / p.savings : 0;
+                            } else {
+                                p.savings = 0;
+                                p.payback = 0;
+                            }
+                        }
+                        projects.push(p);
+                    } catch(err) {
+                        console.error('Erro a ler ficheiro', file.name, err);
+                    }
+                    processed++;
+                    if(processed === files.length) {
+                        // Construir tabela
+                        let html = '<table class="comp-table" style="width:100%; border-collapse:collapse; margin-top:20px;"><thead><tr>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Projeto</th>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Eficiência Atual (%)</th>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Consumo Atual (unid/h)</th>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Eficiência Proposta (%)</th>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Consumo Proposto (unid/h)</th>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Investimento (€)</th>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Poupança Anual (€)</th>' +
+                            '<th style="border:1px solid #ccc; padding:4px;">Payback (anos)</th>' +
+                            '</tr></thead><tbody>';
+                        projects.forEach(p => {
+                            html += '<tr>' +
+                                `<td style="border:1px solid #ccc; padding:4px;">${p.name}</td>` +
+                                `<td style="border:1px solid #ccc; padding:4px; text-align:right;">${p.currEff ? p.currEff.toFixed(1) : '-'}</td>` +
+                                `<td style="border:1px solid #ccc; padding:4px; text-align:right;">${p.currCons ? p.currCons.toFixed(1) : '-'}</td>` +
+                                `<td style="border:1px solid #ccc; padding:4px; text-align:right;">${p.propEff ? p.propEff.toFixed(1) : '-'}</td>` +
+                                `<td style="border:1px solid #ccc; padding:4px; text-align:right;">${p.propCons ? p.propCons.toFixed(1) : '-'}</td>` +
+                                `<td style="border:1px solid #ccc; padding:4px; text-align:right;">${p.invest ? p.invest.toLocaleString() : '-'}</td>` +
+                                `<td style="border:1px solid #ccc; padding:4px; text-align:right;">${p.savings ? p.savings.toLocaleString(undefined,{maximumFractionDigits:0}) : '-'}</td>` +
+                                `<td style="border:1px solid #ccc; padding:4px; text-align:right;">${p.payback ? p.payback.toFixed(1) : '-'}</td>` +
+                                '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        const container = document.getElementById('comparisonContainer');
+                        if(container) container.innerHTML = html;
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        /**
+         * Gera a pré‑visualização do relatório no elemento reportPreview.
+         * Esta função constrói páginas de relatório com capa, índice, indicadores,
+         * perfil de carga, simulações dos fornos, orçamento, análise financeira e
+         * conclusões. As informações são extraídas do estado actual da aplicação.
+         */
+        function generateReportPreview() {
+            const container = document.getElementById('reportPreview');
+            if(!container) return;
+            container.innerHTML = '';
+            const pages = [];
+            const today = new Date().toLocaleDateString('pt-PT');
+            // Capa
+            let cover = `<div class='report-page'>` +
+                `<h1 style='text-align:center;'>Relatório K‑HOVENSIM</h1>` +
+                `<p style='text-align:center; margin-top: 100px;'>Simulação de Eficiência Energética de Fornos</p>` +
+                `<p style='text-align:center; margin-top: 200px;'>Data: ${today}</p>` +
+                `</div>`;
+            pages.push(cover);
+            // Índice
+            let index = `<div class='report-page'>` +
+                `<h2>Índice</h2>` +
+                `<ol>` +
+                `<li>Capa</li>` +
+                `<li>Índice</li>` +
+                `<li>Indicadores Energéticos</li>` +
+                `<li>Perfil de Carga</li>` +
+                `<li>Forno Atual</li>` +
+                `<li>Forno Proposto</li>` +
+                `<li>Orçamento e Investimento</li>` +
+                `<li>Análise Técnica &amp; Financeira</li>` +
+                `<li>Conclusões</li>` +
+                `<li>Contra‑capa</li>` +
+                `</ol>` +
+                `</div>`;
+            pages.push(index);
+            // Garantir que o gráfico de evolução está desenhado antes de capturar
+            try { renderTrendChart(); } catch(err) {}
+
+            // Indicadores Energéticos
+            const pElec = parseFloat(document.getElementById('priceElec').value);
+            const pGas = parseFloat(document.getElementById('priceGas').value);
+            const pBio = parseFloat(document.getElementById('priceBio').value);
+            const pLPG = parseFloat(document.getElementById('priceLPG').value);
+            const pOil = parseFloat(document.getElementById('priceOil').value);
+            const pH2  = parseFloat(document.getElementById('priceH2').value);
+            let indicators = `<div class='report-page'>` +
+                `<h2>Indicadores Energéticos</h2>` +
+                `<table style='width:100%; border-collapse: collapse;'>` +
+                `<thead><tr><th style='border:1px solid #ccc; padding:4px;'>Combustível</th><th style='border:1px solid #ccc; padding:4px;'>Preço</th></tr></thead>` +
+                `<tbody>` +
+                `<tr><td style='border:1px solid #ccc; padding:4px;'>Eletricidade</td><td style='border:1px solid #ccc; padding:4px;'>€ ${pElec.toFixed(3)}/kWh</td></tr>` +
+                `<tr><td style='border:1px solid #ccc; padding:4px;'>Gás Natural</td><td style='border:1px solid #ccc; padding:4px;'>€ ${pGas.toFixed(3)}/kWh</td></tr>` +
+                `<tr><td style='border:1px solid #ccc; padding:4px;'>Biometano</td><td style='border:1px solid #ccc; padding:4px;'>€ ${pBio.toFixed(3)}/kWh</td></tr>` +
+                `<tr><td style='border:1px solid #ccc; padding:4px;'>GLP</td><td style='border:1px solid #ccc; padding:4px;'>€ ${(pLPG/12.8).toFixed(3)}/kWh</td></tr>` +
+                `<tr><td style='border:1px solid #ccc; padding:4px;'>Óleo</td><td style='border:1px solid #ccc; padding:4px;'>€ ${(pOil/11.6).toFixed(3)}/kWh</td></tr>` +
+                `<tr><td style='border:1px solid #ccc; padding:4px;'>Hidrogénio</td><td style='border:1px solid #ccc; padding:4px;'>€ ${(pH2/33.3).toFixed(3)}/kWh</td></tr>` +
+                `</tbody></table>`;
+            // Inserir gráfico de evolução de preços se existir
+            const trendCanvas = document.getElementById('trendChart');
+            if(trendCanvas && trendCanvas.toDataURL) {
+                const imgData = trendCanvas.toDataURL('image/png');
+                indicators += `<div style='margin-top:10px; text-align:center;'><img src='${imgData}' style='max-width:100%;'></div>`;
+            }
+            indicators += `</div>`;
+            pages.push(indicators);
+            // Perfil de carga
+            let profilePage = `<div class='report-page'><h2>Perfil de Carga</h2>`;
+            if(appData.loadStats && appData.loadStats.avg) {
+                profilePage += `<p>A potência média é ${appData.loadStats.avg.toFixed(1)} kW e o pico máximo ${appData.loadStats.max.toFixed(1)} kW.</p>`;
+            }
+            // Anexar gráfico diário se disponível. O ID correcto é chartDay.
+            const dailyChart = document.getElementById('chartDay');
+            if(dailyChart && dailyChart.toDataURL) {
+                const imgDaily = dailyChart.toDataURL('image/png');
+                profilePage += `<h3>Perfil Diário</h3><img src='${imgDaily}' style='max-width:100%;'>`;
+            }
+            // Mensal: usa o gráfico chartYear que mostra os totais mensais.
+            const monthlyChartEl = document.getElementById('chartYear');
+            if(monthlyChartEl && monthlyChartEl.toDataURL) {
+                const imgMonthly = monthlyChartEl.toDataURL('image/png');
+                profilePage += `<h3>Consumo Mensal</h3><img src='${imgMonthly}' style='max-width:100%;'>`;
+            }
+            // Gráfico horário anual
+            const hourlyChart = document.getElementById('chartHourly');
+            if(hourlyChart && hourlyChart.toDataURL) {
+                const imgHourly = hourlyChart.toDataURL('image/png');
+                profilePage += `<h3>Perfil Horário Anual</h3><img src='${imgHourly}' style='max-width:100%;'>`;
+            }
+            // Análise textual
+            const analysisTextEl = document.getElementById('loadAnalysisText');
+            if(analysisTextEl) {
+                profilePage += `<h3>Análise</h3><p>${analysisTextEl.innerText || ''}</p>`;
+            }
+            profilePage += `</div>`;
+            pages.push(profilePage);
+            // Forno Atual
+            let currPage = `<div class='report-page'><h2>Forno Atual</h2>`;
+            if(appData.furnace && appData.furnace.perf) {
+                const pf = appData.furnace.perf;
+                currPage += `<p>Consumo médio: ${pf.consHour.toFixed(1)} unid/h; Eficiência: ${pf.efficiency.toFixed(1)}%; Perdas de parede: ${pf.wallLoss.toFixed(1)} kW; Perdas de exaustão: ${pf.flueLoss.toFixed(1)}%.</p>`;
+            }
+            const descCurrEl = document.getElementById('desc-current');
+            if(descCurrEl) {
+                currPage += `<div>${descCurrEl.innerHTML}</div>`;
+            }
+            currPage += `</div>`;
+            pages.push(currPage);
+            // Forno Proposto
+            let propPage = `<div class='report-page'><h2>Forno Proposto</h2>`;
+            if(appData.proposed && appData.proposed.perf) {
+                const pp = appData.proposed.perf;
+                propPage += `<p>Consumo médio: ${pp.consHour.toFixed(1)} unid/h; Eficiência: ${pp.efficiency.toFixed(1)}%; Perdas de parede: ${pp.wallLoss.toFixed(1)} kW; Perdas de exaustão: ${pp.flueLoss.toFixed(1)}%.</p>`;
+            }
+            const descPropEl = document.getElementById('desc-prop');
+            if(descPropEl) {
+                propPage += `<div>${descPropEl.innerHTML}</div>`;
+            }
+            // Comparação
+            if(appData.furnace.perf && appData.proposed.perf) {
+                const diffEff = (appData.proposed.perf.efficiency - appData.furnace.perf.efficiency).toFixed(1);
+                const diffCons = (appData.proposed.perf.consHour - appData.furnace.perf.consHour).toFixed(1);
+                propPage += `<h3>Comparação</h3><p>Diferença de eficiência: ${diffEff}% ; Diferença de consumo/h: ${diffCons} unid/h.</p>`;
+            }
+            propPage += `</div>`;
+            pages.push(propPage);
+            // Orçamento
+            let budgetPage = `<div class='report-page'><h2>Orçamento e Investimento</h2>`;
+            budgetPage += `<table style='width:100%; border-collapse: collapse; font-size:0.9em;'><thead><tr>` +
+                `<th style='border:1px solid #ccc; padding:4px;'>Descrição</th>` +
+                `<th style='border:1px solid #ccc; padding:4px;'>Quant.</th>` +
+                `<th style='border:1px solid #ccc; padding:4px;'>Unid.</th>` +
+                `<th style='border:1px solid #ccc; padding:4px;'>Preço Unit.</th>` +
+                `<th style='border:1px solid #ccc; padding:4px;'>Total</th>` +
+                `</tr></thead><tbody>`;
+            if(appData.budget && appData.budget.items) {
+                appData.budget.items.forEach(item => {
+                    const total = (item.qty * item.unitPrice).toFixed(0);
+                    budgetPage += `<tr><td style='border:1px solid #ccc; padding:4px;'>${item.desc}</td>` +
+                        `<td style='border:1px solid #ccc; padding:4px;'>${item.qty}</td>` +
+                        `<td style='border:1px solid #ccc; padding:4px;'>${item.unit}</td>` +
+                        `<td style='border:1px solid #ccc; padding:4px;'>${item.unitPrice.toFixed(0)}</td>` +
+                        `<td style='border:1px solid #ccc; padding:4px;'>${total}</td></tr>`;
+                });
+            }
+            budgetPage += `</tbody></table>`;
+            if(appData.budget && appData.budget.total) {
+                budgetPage += `<p style='margin-top:10px; font-weight:bold;'>Total do Investimento: € ${appData.budget.total.toLocaleString()}</p>`;
+            }
+            budgetPage += `</div>`;
+            pages.push(budgetPage);
+            // Análise Técnica & Financeira
+            let analysisPage = `<div class='report-page'><h2>Análise Técnica &amp; Financeira</h2>`;
+            if(appData.simResults) {
+                const sav = appData.simResults.savings;
+                const inv = appData.simResults.capex;
+                const payback = sav > 0 ? inv / sav : 0;
+                analysisPage += `<p>Economia anual estimada: € ${sav.toLocaleString()}.</p>`;
+                analysisPage += `<p>Investimento total: € ${inv.toLocaleString()}.</p>`;
+                analysisPage += `<p>Período de retorno (Payback): ${payback.toFixed(1)} anos.</p>`;
+                // Inserir gráficos comparativos se estiverem disponíveis
+                const compDaily = document.getElementById('compChartDaily');
+                if(compDaily && compDaily.toDataURL) {
+                    const img = compDaily.toDataURL('image/png');
+                    analysisPage += `<h3>Comparação Diária</h3><img src='${img}' style='max-width:100%;'>`;
+                }
+                const compMonthly = document.getElementById('compChartMonthly');
+                if(compMonthly && compMonthly.toDataURL) {
+                    const img = compMonthly.toDataURL('image/png');
+                    analysisPage += `<h3>Comparação Mensal</h3><img src='${img}' style='max-width:100%;'>`;
+                }
+                const compYearly = document.getElementById('compChartYearly');
+                if(compYearly && compYearly.toDataURL) {
+                    const img = compYearly.toDataURL('image/png');
+                    analysisPage += `<h3>Comparação Anual</h3><img src='${img}' style='max-width:100%;'>`;
+                }
+                const compHourly = document.getElementById('compChartHourly');
+                if(compHourly && compHourly.toDataURL) {
+                    const img = compHourly.toDataURL('image/png');
+                    analysisPage += `<h3>Comparação Horária (8760h)</h3><img src='${img}' style='max-width:100%;'>`;
+                }
+            } else {
+                analysisPage += `<p>Execute a simulação técnica (Menu 7) para obter resultados.</p>`;
+            }
+            analysisPage += `</div>`;
+            pages.push(analysisPage);
+            // Conclusões
+            let conclusion = `<div class='report-page'><h2>Conclusões</h2>` +
+                `<p>A simulação comparativa demonstra as diferenças entre o forno atual e a solução proposta, evidenciando ganhos de eficiência energética e redução de custos operacionais. O investimento estimado e o período de retorno apresentados permitem avaliar a viabilidade económica do projeto.</p>` +
+                `<p>Recomenda‑se validar estes resultados em contexto real e considerar eventuais variações de preços de energia e padrões de carga.</p>` +
+                `</div>`;
+            pages.push(conclusion);
+            // Contra‑capa
+            let back = `<div class='report-page'><h2 style='text-align:center;'>Fim do Relatório</h2>` +
+                `<p style='text-align:center; margin-top:200px;'>K‑HOVENSIM v3.1</p>` +
+                `<p style='text-align:center;'>© ${new Date().getFullYear()}</p>` +
+                `</div>`;
+            pages.push(back);
+            // Inserir páginas no container
+            pages.forEach(html => {
+                const pageDiv = document.createElement('div');
+                pageDiv.innerHTML = html;
+                container.appendChild(pageDiv.firstElementChild);
+            });
+        }
+
+        /**
+         * Exporta a pré‑visualização do relatório para PDF. Utiliza html2canvas para
+         * converter cada página do relatório em imagem e jsPDF para gerar o ficheiro.
+         */
+        async function downloadReportPDF() {
+            // Em vez de gerar um ficheiro PDF via jsPDF, abrimos a janela de impressão
+            // para que o utilizador escolha a impressora ou guarde em PDF. Garantir
+            // que a pré‑visualização está gerada antes de imprimir.
+            const preview = document.getElementById('reportPreview');
+            if(!preview || preview.children.length === 0) {
+                alert('Gere uma pré‑visualização antes de imprimir.');
+                return;
+            }
+            // Abrir janela temporária com o conteúdo do relatório
+            const printWindow = window.open('', '', 'width=900,height=800');
+            printWindow.document.write('<html><head><title>Relatório K-HOVENSIM</title>');
+            // Copiar estilos básicos para impressão
+            printWindow.document.write('<style>body{font-family:Arial, sans-serif;margin:0;padding:0;} .report-page{width:100%; min-height: 297mm; padding:20px; box-sizing:border-box;} @media print { .report-page { page-break-after: always; } }</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(preview.innerHTML);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+        }
+        function renderTrendChart() {
+            const el = document.getElementById('trendChart');
+            if(!el) return;
+            const labels = [];
+            for(let y=2015; y<=2035; y++) labels.push(y.toString());
+            const electricity = [], gas = [], biom = [], lpg = [], oil = [], hydrogen = [];
+            // Valores base para gás natural (€/kWh) de 2015 a 2025
+            const gasBase = [0.058,0.058,0.058,0.056,0.053,0.049,0.0486,0.0544,0.0559,0.0598,0.0601];
+            for(let i=0; i<labels.length; i++) {
+                // Eletricidade: interpolação linear até 2025 (0.115→0.159) e 2 %/ano após
+                let e;
+                if(i <= 10) e = 0.115 + ((0.159 - 0.115)/10) * i;
+                else e = 0.159 * Math.pow(1.02, i - 10);
+                electricity.push(parseFloat(e.toFixed(3)));
+                // Gás natural: usar valores base até 2025 e crescimento 1,5 %/ano depois
+                let g;
+                if(i <= 10) g = gasBase[i];
+                else g = 0.0601 * Math.pow(1.015, i - 10);
+                gas.push(parseFloat(g.toFixed(4)));
+                // Biometano: preço constante baseado em 0.062 €/kWh
+                biom.push(0.062);
+                // GLP: interpolação linear (0.045→0.055) até 2025 e +2 %/ano depois
+                let l;
+                if(i <= 10) l = 0.045 + ((0.055 - 0.045)/10) * i;
+                else l = 0.055 * Math.pow(1.02, i - 10);
+                lpg.push(parseFloat(l.toFixed(3)));
+                // Óleo: interpolação linear (0.07→0.08) até 2025 e +2 %/ano depois
+                let o;
+                if(i <= 10) o = 0.07 + ((0.08 - 0.07)/10) * i;
+                else o = 0.08 * Math.pow(1.02, i - 10);
+                oil.push(parseFloat(o.toFixed(3)));
+                // Hidrogénio: decréscimo linear (0.20→0.18) até 2025 e -5 %/ano depois
+                let h;
+                if(i <= 10) h = 0.20 - ((0.20 - 0.18)/10) * i;
+                else h = 0.18 * Math.pow(0.95, i - 10);
+                hydrogen.push(parseFloat(h.toFixed(3)));
+            }
+            const ctx = el.getContext('2d');
+            if(charts['trendChart']) charts['trendChart'].destroy();
+            charts['trendChart'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Eletricidade', data: electricity, borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.2)', fill: false },
+                        { label: 'Gás Natural', data: gas, borderColor: '#4CAF50', backgroundColor: 'rgba(76,175,80,0.2)', fill: false },
+                        { label: 'Biometano', data: biom, borderColor: '#ff9800', backgroundColor: 'rgba(255,152,0,0.2)', fill: false },
+                        { label: 'GLP', data: lpg, borderColor: '#f44336', backgroundColor: 'rgba(244,67,54,0.2)', fill: false },
+                        { label: 'Óleo', data: oil, borderColor: '#9c27b0', backgroundColor: 'rgba(156,39,176,0.2)', fill: false },
+                        { label: 'Hidrogénio', data: hydrogen, borderColor: '#00bcd4', backgroundColor: 'rgba(0,188,212,0.2)', fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { title: { display: true, text: '€/kWh' }, beginAtZero: false },
+                        x: { title: { display: true, text: 'Ano' } }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>
